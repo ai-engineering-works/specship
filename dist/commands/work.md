@@ -10,7 +10,7 @@ You are executing work defined by either a spec file (`specs/*.md`) or a fix fil
 
 ## Observability ledger
 
-This command logs to the attest ledger. Follow the patterns in `.attest/ledger/HOW-TO-LOG.md` — specifically the **"work command"** section. Logging is best-effort and silent. Generate a session UUID at the start and include the scope. Log drift_detected for each /check finding, verification_ran for each test invocation, coverage_measured if CLAUDE.md declares a Coverage policy, and session_end with completion outcome. **If a parent_session_id was passed in $ARGUMENTS (i.e., this /work was spawned by /ship), include it in session_start so the ledger can correlate parent and child.**
+This command logs to the specship ledger. Follow the patterns in `.specship/ledger/HOW-TO-LOG.md` — specifically the **"work command"** section. Logging is best-effort and silent. Generate a session UUID at the start and include the scope. Log drift_detected for each /check finding, verification_ran for each test invocation, coverage_measured if CLAUDE.md declares a Coverage policy, and session_end with completion outcome. **If a parent_session_id was passed in $ARGUMENTS (i.e., this /work was spawned by /ship), include it in session_start so the ledger can correlate parent and child.**
 
 ### When to log a `decision_logged` event
 
@@ -34,7 +34,7 @@ When in doubt, log it — over-logging is easier to filter than under-logging is
 ### Decision logging skeleton
 
 ```bash
-DECISION_ID=$(python3 .attest/ledger/attest_ledger.py log decision_logged \
+DECISION_ID=$(python3 .specship/ledger/specship_ledger.py log decision_logged \
     session_id="\"$SID\"" \
     artifact="\"$SPEC_PATH\"" \
     summary='"<one-sentence what was chosen>"' \
@@ -50,8 +50,15 @@ The user has invoked this command with: $ARGUMENTS
 Parse:
 - First positional argument: path to a spec file or fix file
 - Optional `--scope backend` or `--scope frontend`
+- Optional `--plan-only` — do pre-flight and produce a plan, then STOP. Write the plan to `.specship/plans/<session-id>.md` and exit. Used by `/ship` to capture plans for combined human approval before parallel execution.
+- Optional `--from-plan <path>` — read a previously-drafted plan from the given path. Skip pre-flight and planning. Execute directly. Used by `/ship` after the human approves the plans from `--plan-only` runs.
+- Optional `--parent-session-id <uuid>` — propagated by `/ship` so child events correlate to the orchestration.
 
-If the path is missing, ask which artifact to work on.
+**The two flags `--plan-only` and `--from-plan` are mutually exclusive.** If both are passed, refuse with an error.
+
+**Direct invocations (no flag) keep the existing behaviour**: do pre-flight, draft a plan, present it inline, wait for the user to approve, then execute. This is the human-in-the-loop default.
+
+If the path is missing (and `--from-plan` is also missing), ask which artifact to work on.
 
 ## Determine artifact type
 
@@ -110,7 +117,76 @@ If any pre-flight step fails, stop. Do not proceed to planning.
 
 ## Plan first
 
-After pre-flight passes:
+**Branch on mode:**
+
+### Mode A — `--from-plan <path>` (orchestrated execution)
+
+You were invoked by `/ship` after the human approved a previously-drafted plan. Skip pre-flight (it ran during `--plan-only`) and skip planning entirely.
+
+1. Read the plan file at the given path. It contains the scope, source artifact, files to modify, verification commands, expected decisions, and any warnings the human reviewed.
+2. Update artifact status to `in-progress`.
+3. Log a `plan_executing` event with the plan's `plan_id` (encoded in the plan file's frontmatter).
+4. Skip directly to **Execute** below — do NOT re-present the plan. The human already approved it.
+5. If the plan file is missing, malformed, or the `plan_id` doesn't match a `plan_approved` event in the ledger, REFUSE. Tell the orchestrator: "Cannot execute from plan: plan not found / not approved." This is a safety check — `/work --from-plan` must never execute a plan that wasn't first approved.
+
+### Mode B — `--plan-only` (orchestrated planning)
+
+You were invoked by `/ship` to produce a plan for a separate human-approval step. After pre-flight passes:
+
+1. Identify scope's surface area (same logic as Mode C below).
+2. Draft the plan content (same fields as Mode C).
+3. Generate a `plan_id` (UUID) and write the plan to `.specship/plans/<plan_id>.md` with the following structure:
+
+   ```markdown
+   ---
+   plan_id: <uuid>
+   session_id: <your session uuid>
+   scope: <backend|frontend|single>
+   source_artifact: <spec or fix path>
+   drafted_at: <ISO timestamp>
+   ---
+
+   # Plan for <scope> — <source_artifact>
+
+   ## Order of acceptance criteria
+   <list>
+
+   ## Files to create or modify
+   <list with file paths>
+
+   ## Tests to add or update
+   <list>
+
+   ## Decisions you expect to make
+   <list — give the human a heads-up about choices Claude expects to encounter,
+    so they can flag concerns upfront rather than at /review-decisions time>
+
+   ## Verification commands
+   <list — what you'll run during execution>
+
+   ## Warnings from drift check
+   <if any>
+
+   ## Invariants from CLAUDE.md that apply
+   <list>
+   ```
+
+4. Log `plan_drafted` to the ledger:
+   ```bash
+   log plan_drafted session_id="\"$SID\"" \
+       plan_id="\"$PLAN_ID\"" \
+       scope="\"<backend|frontend|single>\"" \
+       source_artifact="\"<spec-or-fix-path>\"" \
+       plan_path="\".specship/plans/$PLAN_ID.md\"" \
+       files_to_modify='[...]' \
+       estimated_decisions=<int>
+   ```
+5. **STOP.** Do NOT execute. Return to the parent (the `/ship` orchestrator) with the plan_id and plan_path. Tell the parent: "Plan drafted at .specship/plans/<plan_id>.md. Awaiting orchestrator's approval gate."
+6. Log `session_end` with `outcome="plan-only"`.
+
+### Mode C — direct invocation (default — human-in-the-loop)
+
+After pre-flight passes (no orchestrator involved):
 
 1. Update artifact status to `in-progress` (spec file in spec mode, fix file in fix mode).
 
@@ -127,12 +203,16 @@ After pre-flight passes:
    - Generated artifacts you'll import (read-only)
    - Invariants from `CLAUDE.md` that constrain the approach
    - Any warnings from the drift check that affect the plan
+   - Decisions you expect to make during execution (forewarn the user)
 
 5. Present the plan and **wait for approval** before executing.
 
 ## Execute
 
-After approval:
+Reached after:
+- Mode A: `--from-plan` (no approval needed — already given before this session ran)
+- Mode B: never (Mode B stops before execution)
+- Mode C: human approved the plan inline
 
 1. Work through THIS scope's acceptance criteria in order.
 2. Tick checkboxes as criteria complete (scope-prefixed for clarity).
@@ -207,7 +287,7 @@ Check whether CLAUDE.md contains a `## Coverage policy` section. If not, skip th
 2. **Run the coverage checker:**
 
    ```bash
-   COV_RESULT=$(python3 .attest/coverage/coverage-check.py --base origin/main)
+   COV_RESULT=$(python3 .specship/coverage/coverage-check.py --base origin/main)
    COV_PASSED=$(echo "$COV_RESULT" | python3 -c "import sys, json; print(json.load(sys.stdin)['passed'])")
    ```
 

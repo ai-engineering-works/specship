@@ -6,11 +6,107 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+### Added — v0.12.0 (renamed from attest to specship)
+
+**This is a brand change, not a behaviour change.** Everything attest did, specship does — same commands, same ledger, same workflow. The audit trail under the old name is preserved exactly. Only the names, paths, and binaries change.
+
+Why the rename: the old name "attest" emphasized the act of certification (every artifact attests to something). That framing was accurate but passive — attestation is something you stamp after the fact. "specship" captures the active discipline the workflow actually enforces: take a spec, ship the code, every step traceable. The workflow IS the spec-to-ship pipeline. The name now matches the verb.
+
+**What renamed**:
+- The product itself: `attest` → `specship`
+- The runtime directory: `.attest/` → `.specship/`
+- The ledger binary: `attest_ledger.py` → `specship_ledger.py`
+- The bash helpers: `attest_log`, `attest_session_id`, `attest_summary`, `attest_rebuild_index` → `specship_log`, `specship_session_id`, etc.
+- The design archive: `ATTEST-DESIGN.md` → `SPECSHIP-DESIGN.md`
+- The plans directory (added v0.11.0): `.attest/plans/` → `.specship/plans/`
+- The dashboard install path: `.attest/dashboard/` → `.specship/dashboard/`
+
+**What did NOT rename**:
+- The nine slash commands: `/spec`, `/contract`, `/work`, `/check`, `/fix`, `/investigate`, `/ship`, `/encode-lesson`, `/review-decisions` — unchanged.
+- The JSONL event schema: `event_type` values (`session_start`, `plan_drafted`, `coverage_measured`, etc.) are unchanged. Old ledgers are forward-compatible.
+- The skill names: `claude-md-architect` and `spec-reverse-engineer` — unchanged.
+- The Wall's behaviour: same six acceptance scenarios.
+- The pre-commit hook's gate logic.
+- Hash mechanism, breaking-change detection, coverage gate, two-phase `/ship` orchestration — all unchanged.
+- Historical CHANGELOG entries: entries below v0.12.0 keep the original "attest" name because that's an honest record of when those changes happened.
+
+**Migration for existing installs**:
+
+A one-time migration script lives at `scripts/migrate-from-attest.sh`. It renames `.attest/` → `.specship/` in your repo, renames the ledger binary, updates the pre-commit hook references, and updates the `.gitignore` entries. The ledger contents (`events.jsonl`) are preserved byte-for-byte — every historical event, session, decision, plan, and coverage measurement stays intact under the new path.
+
+```bash
+# In the specship distribution repo:
+./scripts/migrate-from-attest.sh /path/to/your/target/repo
+
+# Then re-install the renamed binaries:
+./scripts/install.sh /path/to/your/target/repo
+
+# Then commit in the target repo:
+cd /path/to/your/target/repo
+git add .specship .gitignore
+git rm --cached -r .attest 2>/dev/null || true
+git commit -m "migrate from attest to specship"
+```
+
+**Safety**:
+- `install.sh` refuses to run on a repo that still has `.attest/` present. You must migrate first. This prevents the failure mode where someone runs install over an attest install and ends up with a confusing parallel state (two ledgers, two helper trees, hook pointing at the old binary). Explicit migration is auditable; auto-detection-magic is not.
+- The migration script keeps backups of any file it modifies (e.g. `.git/hooks/pre-commit.pre-specship.bak`).
+
+**What I deliberately did NOT do**:
+- I did not rewrite historical CHANGELOG entries. v0.6.x through v0.11.0 happened to a product called attest. Pretending otherwise loses information. The version-history portions of SPECSHIP-DESIGN.md likewise refer to "attest" where they describe past decisions, with a top-of-file note about the rename.
+- I did not bundle a legacy-symlink so that `attest_ledger.py` keeps working as an alias for `specship_ledger.py`. Symlinks-as-aliases hide reality from audit tools (which file is being run?) and slowly defeat the rename. If you have automation that hardcodes `attest_ledger.py` somewhere external to the install (CI workflow elsewhere, monitoring), update that automation as a deliberate change.
+
+### Added — v0.11.0 (two-phase /ship orchestration)
+
+**Bug fix from real-ticket use**. The first time `/ship` ran on a real bank ticket, both subagents stalled after their drift checks with "I have a plan, do you approve?" — `/work`'s plan-approval gate fired inside the subagent context where no human was present, and the orchestrator had no way to surface the question. `/ship` was non-functional under the v0.10.0 design. This release fixes that.
+
+**The architectural change**: `/ship` Stage 2 is split into a planning sub-phase and an execution sub-phase, with one combined human approval in between. The audit trail records the approval as `plan_approved` events.
+
+- **`/work` gains two flags**:
+  - `--plan-only` — do pre-flight, draft a plan, write it to `.specship/plans/<plan_id>.md`, log `plan_drafted`, exit. Used by `/ship` to capture plans for combined approval.
+  - `--from-plan <path>` — read a previously-drafted plan, validate that a `plan_approved` event exists for the plan_id, skip pre-flight and planning, execute directly. Used by `/ship` after approval. **Safety property**: refuses to execute plans that don't have a corresponding `plan_approved` event in the ledger.
+  - Direct invocation (no flag) unchanged — drafts plan inline, waits for human approval, executes.
+
+- **`/ship` Stage 2 rewrite**:
+  - **Stage 2a (plan dispatch)**: spawns both `/work --plan-only` subagents in parallel. Both draft plans and exit without modifying any code.
+  - **Stage 2b (combined approval)**: orchestrator reads both plans, presents them to the human as one combined approval. Options: `approve both | approve <scope> | reject both | request changes <scope>`. Partial approval is a first-class outcome — `/ship` will execute approved scopes only.
+  - **Stage 2c (execute dispatch)**: spawns fresh `/work --from-plan` subagents in parallel for each approved scope.
+
+- **Three new ledger event types** projecting into a new `plans` table:
+  - `plan_drafted` — emitted by `/work --plan-only`; fields: plan_id, parent_session_id, scope, source_artifact, plan_path, files_to_modify (JSON array), estimated_decisions
+  - `plan_approved` — emitted by `/ship` after human verdict; fields: plan_id, scope, verdict (approved/rejected/changes-requested), reviewer_note. Layered onto existing plans row via UPDATE.
+  - `plan_executing` — emitted by `/work --from-plan` at start of execution; layered onto plans row.
+
+- **Plans are transient**. `.specship/plans/*.md` is now gitignored on install. Plan files are handoff between subagents; the audit-relevant facts live in the ledger.
+
+- **Dashboard updates**:
+  - L2 workflow timeline gains a "plan review" stage between contract and work, shown only for intents that used `/ship`
+  - New friction signal #7: surfaces plans drafted but not yet approved (the exact symptom of the v0.10.0 deadlock if a session got interrupted mid-`/ship`)
+
+- **HOW-TO-LOG.md** updated with `/work --plan-only`, `/work --from-plan`, and the updated `/ship` event sequence.
+
+- **`specship_ledger.py summary`** now includes a "`/ship` plan approvals" block showing total drafted, approved, rejected, changes-requested, pending, and executed counts.
+
+### Migration from v0.10.x
+
+- Re-run `./scripts/install.sh /path/to/your/repo` to install the updated commands and add `.specship/plans/` to gitignore.
+- **Existing data is unaffected.** The `plans` table is created on next `rebuild-index`; before any plan events exist, it's empty. Sessions logged under v0.10.0's old `/ship` design (which never completed) remain in the ledger as orphaned `subagent_spawned` events without matching `subagent_completed` — these are visible in the dashboard as in-progress and can be ignored or cleaned by archiving the affected session_ids.
+- The fix is fully backwards-compatible for the 9 other commands and for direct `/work` invocation. Only `/ship` and the two new `/work` flags are new behaviour.
+
+### Design notes
+
+A few decisions worth recording explicitly (full context in SPECSHIP-DESIGN.md §3.13):
+
+- **Why not an `--auto-approve` flag on `/work`?** Inconsistent gate behaviour in a regulated workflow is its own audit risk. The audit answer to "did the AI's plan get human approval?" should be the same regardless of whether `/work` was invoked directly or via `/ship`.
+- **Why not sequential degradation?** Loses the main reason `/ship` exists (parallelism) without fixing the underlying mismatch.
+- **Why are plans gitignored?** They're transient handoffs between subagents within a single `/ship` invocation. The audit-relevant facts (what was planned, what was approved, what was executed) are in the ledger. Committing plans would add noise without audit value.
+- **Why partial approval is a first-class outcome.** "Approve backend, reject frontend" is a real review verdict, not a degenerate case. `/ship` executes the approved scope; the rejected scope's spec criteria stay unticked, the spec status doesn't advance. The user re-runs `/ship` after addressing the rejected scope.
+
 ### Added — v0.10.0 (test coverage gate)
 
 **Coverage policy as a first-class invariant.**
 
-Test coverage is enforced as a three-gate pipeline that reuses attest's existing primitives. The gating metric is **delta coverage** (percentage of lines added or modified in this session that are covered by tests) — answering the audit-relevant question "did the AI-generated code come with adequate tests?". Project-wide coverage is tracked alongside as informational.
+Test coverage is enforced as a three-gate pipeline that reuses specship's existing primitives. The gating metric is **delta coverage** (percentage of lines added or modified in this session that are covered by tests) — answering the audit-relevant question "did the AI-generated code come with adequate tests?". Project-wide coverage is tracked alongside as informational.
 
 - **New: `dist/coverage/coverage-check.py`** — measures and parses coverage reports. Reads policy from CLAUDE.md (`## Coverage policy` section), supports both coverage.py JSON and lcov formats, computes delta coverage by intersecting `git diff` line ranges with covered/uncovered lines from the report. Returns structured JSON for downstream consumers. Verified against 5 scenarios: below threshold, above threshold, no CLAUDE.md policy, missing report, lcov input — all classify correctly.
 
@@ -22,16 +118,16 @@ Test coverage is enforced as a three-gate pipeline that reuses attest's existing
 
 - **CLAUDE.md template** has a new "Coverage policy" section with 7 fields: Metric, Threshold, Project floor, Tool, Report path, Excluded paths, Bypass policy. Removing this section from a project's CLAUDE.md disables coverage gating entirely (no enforcement, no warnings). The Excluded paths field defaults to `_generated/**, tests/**, migrations/**` so generated code and test code don't count toward the denominator.
 
-- **install.sh** detects whether CLAUDE.md declares a policy at install time and surfaces guidance accordingly. Coverage helper installs to `.attest/coverage/coverage-check.py` (executable). Step count went from 7 to 8.
+- **install.sh** detects whether CLAUDE.md declares a policy at install time and surfaces guidance accordingly. Coverage helper installs to `.specship/coverage/coverage-check.py` (executable). Step count went from 7 to 8.
 
 ### Design notes (the explicit non-choices)
 
 A few decisions made deliberately rather than by default:
 
-- **Delta coverage gates, project coverage is informational.** A regulator's question is "did this AI-generated code come with adequate tests" — answered by delta. Many teams' CI gates on project (drop-from-baseline). attest captures both per measurement so the audit story remains coherent across the divergence.
+- **Delta coverage gates, project coverage is informational.** A regulator's question is "did this AI-generated code come with adequate tests" — answered by delta. Many teams' CI gates on project (drop-from-baseline). specship captures both per measurement so the audit story remains coherent across the divergence.
 - **The pre-commit gate is bypassable.** Same `--no-verify` mechanism as the linkage gate. Consistency in a regulated workflow matters; inconsistent gate behavior creates its own audit risk. Bypasses are logged separately as `gate_bypassed` events.
 - **No auto-test-generation.** When coverage is below threshold, `/work` surfaces uncovered lines with concrete suggestions but does NOT write the tests. Tests-that-exist-purely-to-lift-a-number poison the audit trail; better to surface the gap and let humans (or a deliberate `/work` re-invocation) decide.
-- **No new coverage tool.** attest does not implement coverage measurement. It runs the team's existing tool (pytest --cov, jest --coverage, go test -coverprofile, etc.) and parses the output. The team's coverage configuration stays in the team's coverage tool config (.coveragerc, jest.config.js, etc.) — attest just declares the threshold and parses the result.
+- **No new coverage tool.** specship does not implement coverage measurement. It runs the team's existing tool (pytest --cov, jest --coverage, go test -coverprofile, etc.) and parses the output. The team's coverage configuration stays in the team's coverage tool config (.coveragerc, jest.config.js, etc.) — specship just declares the threshold and parses the result.
 - **The hook reads the ledger; it does NOT re-run coverage.** Re-running coverage inside a git hook would make commits painfully slow. The assumption is that `/work` or `/fix` measured coverage in its post-flight; the hook reads that recent measurement. If no measurement exists, the hook warns but allows (failing-safe, since the absence of measurement is a `/work` problem, not a commit-time problem). CI re-runs coverage authoritatively against a clean checkout.
 
 ### Migration from v0.9.x
@@ -60,9 +156,9 @@ A few decisions made deliberately rather than by default:
 
 **Critique 11 closed: explicit scope statement.**
 
-- **New README section "Scope — what attest is, and what it isn't"** placed immediately after Quick Start. Table of 10 adjacent concerns with the canonical tool to use instead: LangGraph/CrewAI/AutoGen (general agent frameworks), GitHub/Gerrit (code review), Apigee/Kong (API gateways), LangSmith/Arize (full observability platforms), PagerDuty (incident management), Bazel/Nx (monorepo build), and others.
+- **New README section "Scope — what specship is, and what it isn't"** placed immediately after Quick Start. Table of 10 adjacent concerns with the canonical tool to use instead: LangGraph/CrewAI/AutoGen (general agent frameworks), GitHub/Gerrit (code review), Apigee/Kong (API gateways), LangSmith/Arize (full observability platforms), PagerDuty (incident management), Bazel/Nx (monorepo build), and others.
 - **Removed stale "five things" claim** from the README intro. The system is now nine commands, two skills, one pre-commit hook, observability ledger, and contract helpers — calling that "five things" was straightforwardly wrong.
-- The scope statement is structured to make scope-creep arguments fail cleanly: each adjacent concern names a real, well-known tool that does that job better than attest could.
+- The scope statement is structured to make scope-creep arguments fail cleanly: each adjacent concern names a real, well-known tool that does that job better than specship could.
 
 ### Why now
 The grilling review identified these three critiques together because they share an asymmetric impact: each is small in code surface but large in adoption-readiness. Critique 4 makes audit trails complete (Claude's decisions + human verdicts). Critique 10 makes outputs reproducible under model upgrades. Critique 11 prevents the framework from being expected to do things it doesn't. All three reduce friction for the "do I trust this enough to deploy in production?" decision.
@@ -94,11 +190,11 @@ The grilling review identified these three critiques together because they share
 - Summary output now includes a "Breaking-change checks" section showing the breaking/clean ratio per tool.
 
 ### Why now
-The grilling review identified these two critiques together because they share a structural property: **both close loops that attest previously left open.**
+The grilling review identified these two critiques together because they share a structural property: **both close loops that specship previously left open.**
 - Critique 5: lessons learned from incidents previously stayed in retrospective notes and decayed. `/encode-lesson` makes them durable.
 - Critique 6: the hash mechanism detected *that* contracts changed but not *what kind*. The structural diff classifies the change semantically.
 
-Together they raise attest's compliance posture: an MAS AIRG examiner asking "show me how you learn from incidents" and "show me how you detect contract changes that affect consumers" now has concrete artefacts to inspect (the `lessons` table, the `breaking_changes` table) rather than relying on team assertions.
+Together they raise specship's compliance posture: an MAS AIRG examiner asking "show me how you learn from incidents" and "show me how you detect contract changes that affect consumers" now has concrete artefacts to inspect (the `lessons` table, the `breaking_changes` table) rather than relying on team assertions.
 
 ### Migration from v0.7.x
 - Re-run `./scripts/install.sh /path/to/your/repo` to install the new command and contract helpers.
@@ -109,16 +205,16 @@ Together they raise attest's compliance posture: an MAS AIRG examiner asking "sh
 
 **Critique 1 closed: observability ledger.**
 
-- **New: `.attest/ledger/` directory** with two storage layers:
-  - JSONL at `.attest/ledger/events.jsonl` — append-only source of truth, committed to git for audit portability
-  - SQLite at `.attest/ledger/index.db` — derived query index, gitignored, rebuildable at any time from the JSONL
-- **`attest_ledger.py`** CLI with five subcommands: `log` (append event), `rebuild-index` (regenerate SQLite from JSONL), `query <sql>` (run SQL against the index), `summary [--since DATE]` (human-readable digest), `export-csv <output.csv>` (export to CSV for BI tools / dashboards).
-- **`ledger.sh`** bash helper exposing `attest_log`, `attest_session_id`, `attest_summary`, `attest_rebuild_index` functions for scripts and hooks to call without invoking Python directly.
+- **New: `.specship/ledger/` directory** with two storage layers:
+  - JSONL at `.specship/ledger/events.jsonl` — append-only source of truth, committed to git for audit portability
+  - SQLite at `.specship/ledger/index.db` — derived query index, gitignored, rebuildable at any time from the JSONL
+- **`specship_ledger.py`** CLI with five subcommands: `log` (append event), `rebuild-index` (regenerate SQLite from JSONL), `query <sql>` (run SQL against the index), `summary [--since DATE]` (human-readable digest), `export-csv <output.csv>` (export to CSV for BI tools / dashboards).
+- **`ledger.sh`** bash helper exposing `specship_log`, `specship_session_id`, `specship_summary`, `specship_rebuild_index` functions for scripts and hooks to call without invoking Python directly.
 - **`HOW-TO-LOG.md`** central reference for command-specific logging patterns. Each command's prompt has a short ~3-line reference block pointing to this doc (progressive disclosure — keeps individual commands compact).
 - **All seven commands** now log to the ledger: session_start at entry, session_end at exit with outcome (completed / blocked / abandoned), and command-specific intermediate events (artifact_created, drift_detected, decision_logged, verification_ran, subagent_spawned, subagent_completed).
 - **Pre-commit hook** logs `gate_passed` and `gate_blocked` events when the ledger is installed. Best-effort; never breaks the hook if logging fails.
-- **12 known event types** covering the full attest lifecycle. Unknown event types are stored raw in JSONL but skipped from the specialised SQLite tables (forward-compatibility).
-- **install.sh** creates `.attest/ledger/` in the target repo, installs the three ledger files, and appends the SQLite index files to .gitignore.
+- **12 known event types** covering the full specship lifecycle. Unknown event types are stored raw in JSONL but skipped from the specialised SQLite tables (forward-compatibility).
+- **install.sh** creates `.specship/ledger/` in the target repo, installs the three ledger files, and appends the SQLite index files to .gitignore.
 
 **Critique 2 closed: `/ship` orchestrator.**
 
@@ -132,12 +228,12 @@ Together they raise attest's compliance posture: an MAS AIRG examiner asking "sh
 - Refuses gracefully when the spec is not full-stack, when "Open questions" are unresolved, or when the Contract surface is empty.
 
 ### Why now
-The Critique 1 review identified observability as attest's biggest gap relative to leading-org practice (LangSmith, Arize Phoenix, MLflow patterns) and the MAS AIRG inventory requirement. Critique 2 identified `/ship`-style orchestration as the productivity baseline established by Stripe (10K-line migration in 4 days), Wiz (50K-line library in 20 hours), Rakuten (24→5 day cycle). Both gaps are now closed.
+The Critique 1 review identified observability as specship's biggest gap relative to leading-org practice (LangSmith, Arize Phoenix, MLflow patterns) and the MAS AIRG inventory requirement. Critique 2 identified `/ship`-style orchestration as the productivity baseline established by Stripe (10K-line migration in 4 days), Wiz (50K-line library in 20 hours), Rakuten (24→5 day cycle). Both gaps are now closed.
 
 ### Migration from v0.6.x
 - Re-run `./scripts/install.sh /path/to/your/repo` to install the ledger and the `/ship` command.
 - The ledger starts logging on the next slash command invocation; previous activity is not retroactively reconstructed.
-- The pre-commit hook is backward-compatible: if `.attest/ledger/` doesn't exist, the hook works as before with no logging.
+- The pre-commit hook is backward-compatible: if `.specship/ledger/` doesn't exist, the hook works as before with no logging.
 - Existing specs, fixes, and investigations are unaffected.
 
 ### Added
@@ -151,10 +247,10 @@ The Critique 1 review identified observability as attest's biggest gap relative 
 Runtime errors and broken builds are the most common bug shape, and the previous workflow had no first-class place for the *investigation phase*. `/fix` required a known root cause, but most bugs start unknown. Without `/investigate`, the discovery phase lived in Slack threads and got lost. The trigger for adding this command: every real bug fix in practice starts with an investigation that the workflow previously hid.
 
 ### Added (previous)
-- **New skill: `spec-reverse-engineer`**. Produces attest spec files from existing material: source code (Python, Java, TypeScript, others), OpenAPI/AsyncAPI definitions, BDD `.feature` files, Confluence/Notion-style design docs, or specs from other frameworks (GitHub Spec Kit, BMAD, Kiro, Tessl). Designed for adoption on existing codebases — most users don't start greenfield.
+- **New skill: `spec-reverse-engineer`**. Produces specship spec files from existing material: source code (Python, Java, TypeScript, others), OpenAPI/AsyncAPI definitions, BDD `.feature` files, Confluence/Notion-style design docs, or specs from other frameworks (GitHub Spec Kit, BMAD, Kiro, Tessl). Designed for adoption on existing codebases — most users don't start greenfield.
 - Three reference files for the new skill: `from-code.md` (per-language extraction rules), `from-docs.md` (source-format migration tables), `examples.md` (three worked migrations: Spring Boot + tests, OpenAPI YAML, Confluence-style design doc).
 - New spec status: `draft-reverse-engineered`. Distinct from `draft` to prevent accidentally running `/work` or `/contract` against an unreviewed reverse-engineered spec.
-- README section: "Adopting attest on an existing codebase".
+- README section: "Adopting specship on an existing codebase".
 
 ### Changed
 - `install.sh` now installs both skills (`claude-md-architect` and `spec-reverse-engineer`) under `~/.claude/skills/`, plus the six commands (including the new `/investigate`).
@@ -163,12 +259,12 @@ Runtime errors and broken builds are the most common bug shape, and the previous
 - Pre-commit hook updated for 6-scenario coverage (spec, fix, investigation, no-linkage, ref-in-code, bypass).
 
 ### Changed
-- **Renamed project** from `two-commander` to `attest`. The old name was baggage from the source paper (the Two-Commander blog post) that proposed two human roles managing an agent fleet. That framing turned out to be rhetorical — what the workflow actually does is *attest*: every artifact (spec, contract, fix, §ref, commit) carries an attestation of something. The new name reflects the mechanism, not the metaphor.
-- Updated all user-facing references (README, install messages, skill docstrings, template names) to use `attest`. Historical attribution to the Two-Commander source paper is preserved in the README's "Why this design, and what it isn't" section.
+- **Renamed project** from `two-commander` to `specship`. The old name was baggage from the source paper (the Two-Commander blog post) that proposed two human roles managing an agent fleet. That framing turned out to be rhetorical — what the workflow actually does is *specship*: every artifact (spec, contract, fix, §ref, commit) carries an attestation of something. The new name reflects the mechanism, not the metaphor.
+- Updated all user-facing references (README, install messages, skill docstrings, template names) to use `specship`. Historical attribution to the Two-Commander source paper is preserved in the README's "Why this design, and what it isn't" section.
 
 ### Migration from `two-commander`
-- Repo URL changes: `git clone https://github.com/<you>/attest.git`
-- The `Two-Commander template` is now the `attest template`. The template shape itself is unchanged.
+- Repo URL changes: `git clone https://github.com/<you>/specship.git`
+- The `Two-Commander template` is now the `specship template`. The template shape itself is unchanged.
 - Slash commands (`/spec`, `/contract`, `/work`, `/check`, `/fix`) are unchanged.
 - Existing CLAUDE.md files using the template need no changes — only the name of the format changed, not its structure.
 

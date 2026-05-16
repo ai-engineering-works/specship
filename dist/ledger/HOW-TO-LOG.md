@@ -17,7 +17,7 @@ Skeleton (every command starts with this):
 
 ```bash
 SID=$(python3 -c "import uuid; print(uuid.uuid4())")
-LEDGER=.attest/ledger/attest_ledger.py
+LEDGER=.specship/ledger/specship_ledger.py
 log() { python3 "$LEDGER" log "$@" --quiet 2>/dev/null || true; }
 
 log session_start session_id="\"$SID\"" command='"<this-command-name>"' \
@@ -33,7 +33,7 @@ log session_end session_id="\"$SID\"" outcome='"completed"'
 **Important:**
 - Do not surface ledger output to the user
 - Do not mention logging in your visible response
-- If `.attest/ledger/attest_ledger.py` does not exist, skip silently — the command still runs
+- If `.specship/ledger/specship_ledger.py` does not exist, skip silently — the command still runs
 
 ## Per-command patterns
 
@@ -173,18 +173,54 @@ Events to log:
 
 Events to log:
 - `session_start` (command="ship", artifact_path=spec)
-- `subagent_spawned` for each subagent dispatched:
+- `subagent_spawned` for each plan-phase subagent dispatched (phase='plan'):
   ```bash
   log subagent_spawned session_id="\"$SID\"" \
       child_session_id='"<expected-child-SID>"' \
-      command='"work"' scope='"<backend|frontend>"'
+      command='"work"' scope='"<backend|frontend>"' phase='"plan"'
   ```
-- `subagent_completed` for each subagent returning:
+- (Inside each plan subagent, `/work --plan-only` emits a `plan_drafted` event — the orchestrator does not log this itself.)
+- `subagent_completed` for each plan-phase subagent (outcome='plan-drafted')
+- `plan_approved` for each plan after the human's verdict:
   ```bash
-  log subagent_completed session_id="\"$SID\"" \
-      child_session_id='"<child-SID>"' outcome='"completed"'
+  log plan_approved session_id="\"$SID\"" \
+      plan_id='"<plan-uuid>"' \
+      scope='"<backend|frontend>"' \
+      verdict='"<approved|rejected|changes-requested>"' \
+      reviewer_note='"<short>"'
   ```
+- `subagent_spawned` for each execute-phase subagent (phase='execute', plan_id=<approved plan>):
+  ```bash
+  log subagent_spawned session_id="\"$SID\"" \
+      child_session_id='"<expected-child-SID>"' \
+      command='"work"' scope='"<backend|frontend>"' phase='"execute"' \
+      plan_id='"<plan-uuid>"'
+  ```
+- `subagent_completed` for each execute-phase subagent
 - `session_end` with overall outcome
+
+### `/work --plan-only` (mode B)
+
+`/work` in plan-only mode emits exactly one event after pre-flight and planning:
+```bash
+log plan_drafted session_id="\"$SID\"" \
+    plan_id='"<uuid>"' \
+    parent_session_id='"<parent-from-/ship>"' \
+    scope='"<backend|frontend|single>"' \
+    source_artifact='"<spec-or-fix-path>"' \
+    plan_path='".specship/plans/<plan-id>.md"' \
+    files_to_modify='[...]' \
+    estimated_decisions=<int>
+```
+Followed by `session_end` with `outcome='plan-only'`. No coverage, no verification, no commits — the subagent stopped before execution.
+
+### `/work --from-plan` (mode A)
+
+`/work` in from-plan mode emits `plan_executing` once at the start of execution:
+```bash
+log plan_executing session_id="\"$SID\"" plan_id='"<uuid>"'
+```
+Then proceeds with the usual /work events (drift, decisions, coverage, etc.). No additional plan event is needed at the end — the standard `session_end` covers it.
 
 ### `/encode-lesson` command
 
@@ -234,7 +270,7 @@ The pre-commit hook can also log, when committing in a repo with the ledger inst
 
 ```bash
 # Inside .git/hooks/pre-commit, after the block/pass decision is made:
-LEDGER="$(git rev-parse --show-toplevel)/.attest/ledger/attest_ledger.py"
+LEDGER="$(git rev-parse --show-toplevel)/.specship/ledger/specship_ledger.py"
 if [[ -f "$LEDGER" ]]; then
     if [[ <commit was bypassed with --no-verify> ]]; then
         python3 "$LEDGER" log gate_bypassed --quiet 2>/dev/null || true
@@ -252,7 +288,7 @@ Once events accumulate, query the SQLite index for reports:
 
 ```bash
 # Sessions in the last week, by command and outcome
-python3 .attest/ledger/attest_ledger.py query "
+python3 .specship/ledger/specship_ledger.py query "
     SELECT command, outcome, COUNT(*) AS n
     FROM sessions
     WHERE started_at >= date('now', '-7 days')
@@ -261,7 +297,7 @@ python3 .attest/ledger/attest_ledger.py query "
 "
 
 # Drift findings per artifact
-python3 .attest/ledger/attest_ledger.py query "
+python3 .specship/ledger/specship_ledger.py query "
     SELECT artifact, check_, severity, COUNT(*) AS n
     FROM events
     WHERE event_type = 'drift_detected'
@@ -269,13 +305,13 @@ python3 .attest/ledger/attest_ledger.py query "
 "
 
 # Human-readable summary
-python3 .attest/ledger/attest_ledger.py summary
+python3 .specship/ledger/specship_ledger.py summary
 
 # Summary for the last 30 days only
-python3 .attest/ledger/attest_ledger.py summary --since 2026-04-12
+python3 .specship/ledger/specship_ledger.py summary --since 2026-04-12
 
 # Export sessions table to CSV for spreadsheets / BI tools
-python3 .attest/ledger/attest_ledger.py export-csv sessions.csv --table sessions
+python3 .specship/ledger/specship_ledger.py export-csv sessions.csv --table sessions
 ```
 
 ## What NOT to log

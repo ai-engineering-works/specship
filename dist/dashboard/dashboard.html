@@ -1,5 +1,5 @@
 <meta charset="utf-8">
-<title>attest dashboard</title>
+<title>specship dashboard</title>
 <style>
 :root {
   --bg-primary: #ffffff;
@@ -656,7 +656,7 @@ body {
 <div class="app">
   <header class="header">
     <div>
-      <h1>attest dashboard <span class="repo" id="repo-name"></span></h1>
+      <h1>specship dashboard <span class="repo" id="repo-name"></span></h1>
     </div>
     <div class="controls">
       <span id="data-status"></span>
@@ -1074,7 +1074,7 @@ function computeSignals() {
       severity: pendingPlans.length >= 3 ? 'critical' : 'warn',
       observation: pendingPlans.length + ' /ship plan' + (pendingPlans.length !== 1 ? 's' : '') +
         ' drafted but not yet approved. /ship is paused waiting for your verdict.',
-      action: 'Return to the /ship session and approve or reject the pending plans. Each plan is under .attest/plans/<plan_id>.md.',
+      action: 'Return to the /ship session and approve or reject the pending plans. Each plan is under .specship/plans/<plan_id>.md.',
     });
   }
 
@@ -1446,8 +1446,8 @@ function renderClaudeTab() {
       <div style="font-size: 13px; color: var(--text-primary); margin-bottom: 12px;">Per-query Claude metrics</div>
       <div class="placeholder-note">
         Token counts, model used per query, query duration, and estimated cost will appear here once <code>tokens_consumed</code>
-        and <code>query_completed</code> events are added to the ledger (planned for attest v0.11.0).
-        See ATTEST-DESIGN.md §3.10 for the model-pinning context that motivates this instrumentation.
+        and <code>query_completed</code> events are added to the ledger (planned for specship v0.11.0).
+        See SPECSHIP-DESIGN.md §3.10 for the model-pinning context that motivates this instrumentation.
       </div>
       <div style="margin-top: 16px; font-size: 13px; color: var(--text-secondary);">
         What can be shown today from existing events:
@@ -1522,7 +1522,7 @@ function renderEmptyState() {
       <h2>Load a ledger</h2>
       <p>
         The dashboard reads from <code>events.jsonl</code> — the append-only audit log
-        that attest maintains in your repository. By default it looks for
+        that specship maintains in your repository. By default it looks for
         <code>../ledger/events.jsonl</code> (relative to this dashboard file).
         Or pick a file manually:
       </p>
@@ -1530,7 +1530,7 @@ function renderEmptyState() {
         Choose events.jsonl
         <input type="file" accept=".jsonl,.json" onchange="loadFromFile(this.files[0])">
       </label>
-      <div class="hint">expected path: .attest/ledger/events.jsonl</div>
+      <div class="hint">expected path: .specship/ledger/events.jsonl</div>
     </div>
   `;
 }
@@ -1567,7 +1567,7 @@ function openLocalFile() {
   // file:// URL — let the browser handle it
   const p = state.selectedArtifact;
   if (!p) return;
-  // Construct path relative to repo root (we're at .attest/dashboard/)
+  // Construct path relative to repo root (we're at .specship/dashboard/)
   alert('Open this file in your editor:\n\n' + p + '\n\n(The dashboard cannot read filesystem files directly for security reasons.)');
 }
 
@@ -1612,7 +1612,7 @@ function loadFromFile(file) {
 async function tryAutoLoad() {
   const candidates = [
     '../ledger/events.jsonl',
-    '.attest/ledger/events.jsonl',
+    '.specship/ledger/events.jsonl',
     './events.jsonl',
   ];
   for (const p of candidates) {

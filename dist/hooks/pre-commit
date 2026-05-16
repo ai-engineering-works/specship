@@ -34,7 +34,7 @@ _log_gate() {
     local repo_root ledger
     repo_root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
     [[ -z "$repo_root" ]] && return 0
-    ledger="$repo_root/.attest/ledger/attest_ledger.py"
+    ledger="$repo_root/.specship/ledger/specship_ledger.py"
     [[ -f "$ledger" ]] || return 0
     if [[ "$outcome" == "blocked" ]]; then
         python3 "$ledger" log gate_blocked source='"pre-commit"' \
@@ -60,7 +60,7 @@ _check_coverage_gate() {
     repo_root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
     [[ -z "$repo_root" ]] && return 0
     claude_md="$repo_root/CLAUDE.md"
-    ledger="$repo_root/.attest/ledger/attest_ledger.py"
+    ledger="$repo_root/.specship/ledger/specship_ledger.py"
 
     # No CLAUDE.md or no Coverage policy section → skip
     [[ -f "$claude_md" ]] || return 0

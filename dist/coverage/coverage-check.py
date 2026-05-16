@@ -3,7 +3,7 @@
 coverage-check.py — measure test coverage and produce a structured result
 
 This script is invoked by /work and /fix in their post-flight verification step.
-It is a thin wrapper around the project's actual coverage tool — attest does
+It is a thin wrapper around the project's actual coverage tool — specship does
 not implement coverage measurement itself. The wrapper:
 
   1. Reads coverage policy from CLAUDE.md

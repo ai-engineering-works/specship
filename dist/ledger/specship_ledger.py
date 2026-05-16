@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-attest_ledger.py — the observability ledger for attest.
+specship_ledger.py — the observability ledger for specship.
 
 Two storage layers:
-  - JSONL at .attest/ledger/events.jsonl   (source of truth, append-only)
-  - SQLite at .attest/ledger/index.db      (derived index for fast queries)
+  - JSONL at .specship/ledger/events.jsonl   (source of truth, append-only)
+  - SQLite at .specship/ledger/index.db      (derived index for fast queries)
 
 The JSONL is durable, append-only, human-readable, and survives concurrent
 writes via O_APPEND. The SQLite is a query-side projection that can be
@@ -19,11 +19,11 @@ Design choices:
     Python; jsonl is just text.
 
 CLI:
-  python3 attest_ledger.py log <event-type> --key value ...   # append event
-  python3 attest_ledger.py rebuild-index                       # rebuild SQLite from JSONL
-  python3 attest_ledger.py query <sql>                         # run SQL against index
-  python3 attest_ledger.py summary [--since DATE]              # human-readable digest
-  python3 attest_ledger.py export-csv <output.csv> [--table T] # CSV export
+  python3 specship_ledger.py log <event-type> --key value ...   # append event
+  python3 specship_ledger.py rebuild-index                       # rebuild SQLite from JSONL
+  python3 specship_ledger.py query <sql>                         # run SQL against index
+  python3 specship_ledger.py summary [--since DATE]              # human-readable digest
+  python3 specship_ledger.py export-csv <output.csv> [--table T] # CSV export
 """
 
 from __future__ import annotations
@@ -45,14 +45,14 @@ def repo_root() -> Path:
     """Walk up from CWD looking for .git or a marker."""
     p = Path.cwd().resolve()
     while p != p.parent:
-        if (p / ".git").exists() or (p / ".attest").exists():
+        if (p / ".git").exists() or (p / ".specship").exists():
             return p
         p = p.parent
     return Path.cwd().resolve()
 
 
 def ledger_dir() -> Path:
-    d = repo_root() / ".attest" / "ledger"
+    d = repo_root() / ".specship" / "ledger"
     d.mkdir(parents=True, exist_ok=True)
     return d
 
@@ -86,6 +86,9 @@ KNOWN_EVENT_TYPES = {
     "lesson_encoded",           # an invariant was added to CLAUDE.md / skill / command
     "breaking_change_detected", # /contract detected a structural breaking change
     "coverage_measured",        # /work or /fix measured test coverage
+    "plan_drafted",             # /work --plan-only produced a plan awaiting approval (for /ship orchestration)
+    "plan_approved",            # /ship orchestrator recorded human verdict on a drafted plan
+    "plan_executing",           # /work --from-plan started executing a previously approved plan
 }
 
 
@@ -227,6 +230,27 @@ CREATE TABLE IF NOT EXISTS coverage (
 CREATE INDEX IF NOT EXISTS ix_coverage_ts ON coverage(ts);
 CREATE INDEX IF NOT EXISTS ix_coverage_artifact ON coverage(artifact);
 CREATE INDEX IF NOT EXISTS ix_coverage_passed ON coverage(passed);
+
+CREATE TABLE IF NOT EXISTS plans (
+    plan_id           TEXT PRIMARY KEY,
+    drafted_at        TEXT NOT NULL,
+    drafted_session   TEXT,
+    parent_session    TEXT,
+    scope             TEXT,
+    source_artifact   TEXT,
+    plan_path         TEXT,
+    files_to_modify   TEXT,                 -- JSON array
+    estimated_decisions INTEGER,
+    verdict           TEXT,                 -- 'approved' | 'rejected' | 'changes-requested' | NULL
+    reviewer_note     TEXT,
+    reviewed_at       TEXT,
+    executed_at       TEXT,                 -- set when plan_executing fires
+    executing_session TEXT
+);
+
+CREATE INDEX IF NOT EXISTS ix_plans_verdict ON plans(verdict);
+CREATE INDEX IF NOT EXISTS ix_plans_source ON plans(source_artifact);
+CREATE INDEX IF NOT EXISTS ix_plans_parent ON plans(parent_session);
 
 CREATE TABLE IF NOT EXISTS schema_meta (
     key   TEXT PRIMARY KEY,
@@ -381,6 +405,49 @@ def index_event(conn: sqlite3.Connection, event: dict[str, Any]) -> None:
                 json.dumps(event.get("excluded_paths") or []),
             ),
         )
+    elif et == "plan_drafted":
+        conn.execute(
+            "INSERT OR REPLACE INTO plans "
+            "(plan_id, drafted_at, drafted_session, parent_session, "
+            " scope, source_artifact, plan_path, files_to_modify, "
+            " estimated_decisions, verdict, reviewer_note, reviewed_at, "
+            " executed_at, executing_session) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, NULL)",
+            (
+                event.get("plan_id"),
+                ts,
+                session_id,
+                event.get("parent_session_id"),
+                event.get("scope"),
+                event.get("source_artifact"),
+                event.get("plan_path"),
+                json.dumps(event.get("files_to_modify") or []),
+                event.get("estimated_decisions") or 0,
+            ),
+        )
+    elif et == "plan_approved":
+        # Layer the verdict onto an existing plans row (created by plan_drafted)
+        conn.execute(
+            "UPDATE plans SET verdict = ?, reviewer_note = ?, reviewed_at = ? "
+            "WHERE plan_id = ?",
+            (
+                event.get("verdict"),
+                event.get("reviewer_note"),
+                ts,
+                event.get("plan_id"),
+            ),
+        )
+    elif et == "plan_executing":
+        # Layer execution onto an existing plans row
+        conn.execute(
+            "UPDATE plans SET executed_at = ?, executing_session = ? "
+            "WHERE plan_id = ?",
+            (
+                ts,
+                session_id,
+                event.get("plan_id"),
+            ),
+        )
 
 
 def _infer_kind(path: str) -> str:
@@ -460,7 +527,7 @@ def summary(since: str | None = None) -> str:
 
     lines: list[str] = []
     lines.append("=" * 60)
-    lines.append("attest ledger summary")
+    lines.append("specship ledger summary")
     if since:
         lines.append(f"(events since {since})")
     lines.append("=" * 60)
@@ -613,6 +680,29 @@ def summary(since: str | None = None) -> str:
                 f"{r['delta_pct']:.1f}% < {r['threshold_delta']:.1f}%  ({r['tool']})"
             )
 
+    # /ship plan approval activity
+    rows = conn.execute(
+        "SELECT COUNT(*) AS total, "
+        "  SUM(CASE WHEN verdict = 'approved' THEN 1 ELSE 0 END) AS approved, "
+        "  SUM(CASE WHEN verdict = 'rejected' THEN 1 ELSE 0 END) AS rejected, "
+        "  SUM(CASE WHEN verdict = 'changes-requested' THEN 1 ELSE 0 END) AS changes, "
+        "  SUM(CASE WHEN verdict IS NULL THEN 1 ELSE 0 END) AS pending, "
+        "  SUM(CASE WHEN executed_at IS NOT NULL THEN 1 ELSE 0 END) AS executed "
+        "FROM plans"
+    ).fetchall()
+    if rows and rows[0]['total']:
+        r = rows[0]
+        lines.append("")
+        lines.append("/ship plan approvals:")
+        lines.append(
+            f"  total drafted: {r['total']}  "
+            f"approved: {r['approved'] or 0}  "
+            f"rejected: {r['rejected'] or 0}  "
+            f"changes-requested: {r['changes'] or 0}  "
+            f"pending: {r['pending'] or 0}"
+        )
+        lines.append(f"  executed: {r['executed'] or 0} of {r['approved'] or 0} approved")
+
     conn.close()
     return "\n".join(lines)
 
@@ -695,7 +785,7 @@ def cmd_export_csv(args: argparse.Namespace) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(description="attest observability ledger")
+    p = argparse.ArgumentParser(description="specship observability ledger")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     lp = sub.add_parser("log", help="append an event")
@@ -719,7 +809,7 @@ def main(argv: list[str] | None = None) -> int:
     ep.add_argument("output", help="output file path")
     ep.add_argument("--table", default="sessions",
                     choices=["sessions", "events", "artifacts", "decisions",
-                             "lessons", "breaking_changes", "coverage"])
+                             "lessons", "breaking_changes", "coverage", "plans"])
     ep.set_defaults(func=cmd_export_csv)
 
     args = p.parse_args(argv)

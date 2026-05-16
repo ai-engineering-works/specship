@@ -98,13 +98,13 @@ enough to enforce, promote it to an invariant.
 ## Recommended model
 
 <!--
-Each attest slash command has a `recommended-model` frontmatter field
+Each specship slash command has a `recommended-model` frontmatter field
 (sonnet or opus). The recommendations reflect what each command was
 tested against. Using a different model isn't blocked — it's a
 known-unknown that the team carries.
 -->
 
-The attest commands recommend models as follows:
+The specship commands recommend models as follows:
 
 | Command            | Recommended | Why |
 |--------------------|-------------|-----|
@@ -131,7 +131,7 @@ gates in three locations:
      ready-for-review if delta coverage is below threshold
   2. Pre-commit hook — reads the most recent coverage_measured event
      from the ledger; blocks if it failed
-  3. CI — the authoritative re-measurement (your CI config, not attest)
+  3. CI — the authoritative re-measurement (your CI config, not specship)
 
 The gating metric is DELTA COVERAGE — the percentage of lines added or
 modified in this session that are covered by tests. Project-wide
@@ -147,7 +147,7 @@ in square brackets) before committing.
 - **Tool**: pytest --cov=src --cov-report=json  [e.g. your project's coverage command]
 - **Report path**: coverage.json                [e.g. path where the tool writes its report]
 - **Excluded paths**: _generated/**, tests/**, migrations/**
-- **Bypass policy**: Use `git commit --no-verify` for infrastructure code with team-lead sign-off. All bypasses are logged separately in the ledger as `gate_bypassed` events. Review weekly via `python3 .attest/ledger/attest_ledger.py query "SELECT * FROM events WHERE event_type = 'gate_bypassed' ORDER BY ts DESC"`.
+- **Bypass policy**: Use `git commit --no-verify` for infrastructure code with team-lead sign-off. All bypasses are logged separately in the ledger as `gate_bypassed` events. Review weekly via `python3 .specship/ledger/specship_ledger.py query "SELECT * FROM events WHERE event_type = 'gate_bypassed' ORDER BY ts DESC"`.
 
 ## How to verify work is done
 
@@ -182,7 +182,3 @@ doesn't have to discover it.
 Acronyms and project-specific terms a new engineer (or an AI) won't
 know. Keep entries to one line.
 -->
-
-- [fill in — e.g. "NCBS — New Core Banking System, upstream of SGEN"]
-- [fill in — e.g. "OFPC — Output Financial Posting Cache, downstream"]
-- [fill in — e.g. "§ref — traceability comment linking code to spec"]
