@@ -68,15 +68,20 @@ Advisory, not enforced. Claude Code uses whatever model the user has selected. T
 - `python3 dist/ledger/specship_ledger.py log session_start command='"smoke"' --quiet && python3 dist/ledger/specship_ledger.py rebuild-index` — ledger smoke test
 - `python3 -c "import py_compile; py_compile.compile('dist/contract/breaking-change-fallback.py', doraise=True)"` — breaking-change detector syntax
 - All `*.md` files under `dist/` and `docs/` parse as well-formed markdown (no broken links to non-existent reference files)
+- `python3 dist/lessons/selftest.py` — auto-lessons projection + curator self-test (ALL PASS)
+- `python3 -c "import py_compile; py_compile.compile('dist/lessons/curate.py', doraise=True)"` and same for `lessons_query.py`, `selftest.py`
+- `bash -n dist/lessons/curate.sh`
 
 ## Where things live
 
 - `dist/` — installable artifacts (source of truth)
-- `dist/commands/` — nine slash command prompts
+- `dist/commands/` — thirteen slash command prompts (spec, contract, work, check, fix, investigate, ship, encode-lesson, review-decisions, qa, show, capture-lessons, review-lessons)
 - `dist/contract/` — breaking-change detection helpers (bash + Python fallback)
 - `dist/coverage/` — coverage measurement helper (delta coverage + lcov/JSON parsers)
 - `dist/dashboard/` — single-file static HTML dashboard
 - `dist/ledger/` — observability ledger (specship_ledger.py, ledger.sh, HOW-TO-LOG.md)
+- `dist/lessons/` — auto-lessons loop: `lessons_query.py` (projection helpers),
+  `curate.py` + `curate.sh` (LLM-free hourly curator), `selftest.py`, `HOW-IT-WORKS.md`
 - `.claude/` — generated local copy, synced from `dist/`
 - `docs/` — user-facing workflow documentation
 - `examples/` — worked example specs and fixes

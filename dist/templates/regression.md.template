@@ -1,0 +1,85 @@
+---
+regression_id: <UUID-suffix-or-short-hash>
+parent_fix: <path-to-fix-artifact>
+parent_spec: <optional-path-to-spec-if-known>
+status: draft
+generated_test: <set-by-/qa-after-generation>
+language: <python|typescript>
+generator: <pytest|jest>
+authored_by: <qa-author-name-or-handle>
+authored_at: <ISO-date>
+
+# OPTIONAL: UI flow for end-to-end Playwright test generation.
+# Only include if the original bug had a UI manifestation.
+# Selector vocabulary, step vocabulary, expectation vocabulary — see
+# scenario.md.template for the full reference.
+#
+# Example: a fix for a button being greyed-out when it shouldn't be:
+# ui_action:
+#   start_url: "/signup"
+#   steps:
+#     - fill: "label:Email"
+#       value: "test@example.com"
+#     - click: "button:Continue"
+#   expect:
+#     - visible: "button:Submit"
+#     - text_contains: "Step 2 of 3"
+---
+
+# Regression: <short-human-description>
+
+> **What broke**: <one-sentence-description-of-the-original-bug>
+>
+> **The fix**: <one-sentence-description-of-what-the-fix-does>
+
+## Why this regression exists
+
+<2-4 sentences explaining what failure mode this test guards against. The
+audit-relevant question is: "if this test fails in 6 months, what does that
+tell us about the system?" Write the answer here.>
+
+## Input
+
+```<format: json|yaml|other>
+<the-input-payload-or-state-that-triggered-the-bug>
+```
+
+If the input is more complex (e.g., a sequence of API calls, or a particular
+database state), describe the setup in numbered steps before the call:
+
+1. <pre-condition or setup step>
+2. <call or action that triggered the bug>
+
+## Expected output
+
+```<format>
+<what-the-system-must-return-or-produce-AFTER-the-fix>
+```
+
+If "expected output" includes side effects (events emitted, DB rows changed,
+files written), list them here as observable assertions:
+
+- <e.g., event `subscription.created` is published with payload matching above>
+- <e.g., row in `subscriptions` table with `tier = 'gold'`>
+- <e.g., webhook to `advisor.notify` is fired with HTTP 200>
+
+## Verification command
+
+```bash
+<the exact command the team runs to verify this regression — typically the
+generated pytest/jest invocation. Filled in by /qa after test generation.>
+```
+
+## Notes / retirement
+
+This regression is **append-only**. Once approved, the input and expected
+output above are frozen. Do NOT edit them in response to a test failure —
+either fix the regression in the code, or retire the regression via the
+retirement procedure below.
+
+To retire a regression (only when it's genuinely no longer relevant, e.g.,
+the feature is removed):
+1. Change `status:` in frontmatter to `retired`.
+2. Add a `retired_at:` field with the ISO date.
+3. Add a `retired_reason:` field explaining why.
+4. Do NOT delete the file — keep it as historical record.

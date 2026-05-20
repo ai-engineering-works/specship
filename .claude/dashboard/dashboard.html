@@ -1,0 +1,1646 @@
+<meta charset="utf-8">
+<title>specship dashboard</title>
+<style>
+:root {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f7f6f1;
+  --bg-tertiary: #f1efe8;
+  --text-primary: #1c1c1a;
+  --text-secondary: #5f5e5a;
+  --text-tertiary: #888780;
+  --border: rgba(28, 28, 26, 0.12);
+  --border-strong: rgba(28, 28, 26, 0.24);
+  --accent: #534ab7;
+  --accent-bg: #eeedfe;
+  --accent-text: #26215c;
+  --success: #0f6e56;
+  --success-bg: #e1f5ee;
+  --warning: #854f0b;
+  --warning-bg: #faeeda;
+  --danger: #a32d2d;
+  --danger-bg: #fcebeb;
+  --info: #185fa5;
+  --info-bg: #e6f1fb;
+  --neutral: #5f5e5a;
+  --neutral-bg: #f1efe8;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --font-mono: "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-primary: #1a1a18;
+    --bg-secondary: #232321;
+    --bg-tertiary: #2c2c2a;
+    --text-primary: #f1efe8;
+    --text-secondary: #b4b2a9;
+    --text-tertiary: #888780;
+    --border: rgba(241, 239, 232, 0.12);
+    --border-strong: rgba(241, 239, 232, 0.24);
+    --accent: #afa9ec;
+    --accent-bg: #26215c;
+    --accent-text: #cecbf6;
+    --success: #5dcaa5;
+    --success-bg: #04342c;
+    --warning: #fac775;
+    --warning-bg: #412402;
+    --danger: #f09595;
+    --danger-bg: #501313;
+    --info: #85b7eb;
+    --info-bg: #042c53;
+    --neutral: #b4b2a9;
+    --neutral-bg: #2c2c2a;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+.app { max-width: 1400px; margin: 0 auto; padding: 24px; }
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding-bottom: 16px;
+  border-bottom: 0.5px solid var(--border);
+  margin-bottom: 24px;
+}
+.header h1 {
+  font-size: 18px;
+  font-weight: 500;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+.header .repo {
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  margin-left: 12px;
+}
+.header .controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.btn {
+  background: transparent;
+  border: 0.5px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.btn:hover { background: var(--bg-secondary); }
+.btn:active { transform: scale(0.98); }
+.btn.subtle { color: var(--text-secondary); border-color: var(--border); }
+
+.metrics-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.metric {
+  background: var(--bg-primary);
+  border: 0.5px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+.metric .label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.metric .value {
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.metric .sub {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin-top: 4px;
+}
+.metric.placeholder .value {
+  color: var(--text-tertiary);
+  font-style: italic;
+  font-size: 16px;
+  font-weight: 400;
+}
+
+.signals {
+  background: var(--bg-primary);
+  border: 0.5px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+}
+.signals h2 {
+  margin: 0 0 12px 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.signals .count {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 500;
+}
+.signal {
+  display: flex;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 0.5px solid var(--border);
+  font-size: 13px;
+}
+.signal:first-of-type { border-top: none; padding-top: 0; }
+.signal .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-top: 8px;
+  flex-shrink: 0;
+}
+.signal .dot.info { background: var(--info); }
+.signal .dot.warn { background: var(--warning); }
+.signal .dot.critical { background: var(--danger); }
+.signal .body { flex: 1; }
+.signal .observation { color: var(--text-primary); }
+.signal .action {
+  color: var(--text-secondary);
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+}
+.layout.detail {
+  grid-template-columns: 320px 1fr;
+  gap: 16px;
+}
+
+.intents-list {
+  background: var(--bg-primary);
+  border: 0.5px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.intents-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 0.5px solid var(--border);
+  background: var(--bg-secondary);
+  font-size: 13px;
+}
+.intents-toolbar .filters {
+  display: flex;
+  gap: 6px;
+}
+.filter-chip {
+  background: transparent;
+  border: 0.5px solid var(--border);
+  border-radius: 14px;
+  padding: 3px 10px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.filter-chip.active {
+  background: var(--accent-bg);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+.filter-chip:hover:not(.active) { background: var(--bg-tertiary); }
+
+.intent-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 2fr) auto auto auto;
+  gap: 16px;
+  align-items: center;
+  padding: 14px 16px;
+  border-top: 0.5px solid var(--border);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.intent-row:hover { background: var(--bg-secondary); }
+.intent-row:first-of-type { border-top: none; }
+.intent-row.selected { background: var(--accent-bg); }
+
+.intent-ticket {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.intent-title {
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.intent-kind {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-tertiary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--bg-tertiary);
+}
+.status-badge {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 10px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.status-draft { background: var(--neutral-bg); color: var(--neutral); }
+.status-signed-off, .status-contract-locked, .status-in-progress, .status-ready-for-review { background: var(--info-bg); color: var(--info); }
+.status-done, .status-closed-resolved { background: var(--success-bg); color: var(--success); }
+.status-superseded, .status-closed-not-reproducible, .status-closed-external { background: var(--neutral-bg); color: var(--neutral); }
+.status-stalled, .status-open, .status-root-cause-identified { background: var(--warning-bg); color: var(--warning); }
+
+.intent-date {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  white-space: nowrap;
+}
+
+/* ----- L2 Detail ----- */
+.detail-pane {
+  background: var(--bg-primary);
+  border: 0.5px solid var(--border);
+  border-radius: 8px;
+  padding: 20px 24px;
+  min-height: 500px;
+}
+.detail-pane.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-tertiary);
+  font-size: 14px;
+}
+.detail-header { margin-bottom: 20px; }
+.detail-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+.detail-title {
+  font-size: 16px;
+  font-weight: 500;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+.detail-meta {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 6px;
+}
+.detail-meta span { white-space: nowrap; }
+
+.timeline {
+  margin-top: 20px;
+  background: var(--bg-secondary);
+  border-radius: 8px;
+  padding: 16px;
+}
+.timeline-header {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+  font-weight: 500;
+}
+.timeline-track {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 8px;
+  position: relative;
+}
+.timeline-node {
+  padding: 10px 12px;
+  background: var(--bg-primary);
+  border: 0.5px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border 0.1s, background 0.1s;
+}
+.timeline-node:hover { border-color: var(--border-strong); background: var(--bg-tertiary); }
+.timeline-node.complete { border-color: var(--success); }
+.timeline-node.active { border-color: var(--accent); background: var(--accent-bg); }
+.timeline-node.pending { opacity: 0.5; }
+
+.timeline-node .stage {
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+  margin-bottom: 4px;
+}
+.timeline-node .label {
+  font-size: 12px;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  margin-bottom: 4px;
+  word-break: break-word;
+}
+.timeline-node .substat {
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+.tabs {
+  margin-top: 24px;
+  border-top: 0.5px solid var(--border);
+  padding-top: 16px;
+}
+.tab-bar {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+.tab {
+  background: transparent;
+  border: none;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: 6px;
+  position: relative;
+}
+.tab:hover { background: var(--bg-secondary); }
+.tab.active {
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  font-weight: 500;
+}
+.tab .count {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-left: 4px;
+}
+
+.tab-content { padding: 4px 0; }
+.tab-empty {
+  padding: 24px 0;
+  text-align: center;
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
+
+.decision, .commit-row, .coverage-row, .drift-row, .lesson-row {
+  padding: 12px 0;
+  border-top: 0.5px solid var(--border);
+}
+.decision:first-child, .commit-row:first-child, .coverage-row:first-child, .drift-row:first-child, .lesson-row:first-child { border-top: none; }
+
+.decision-summary {
+  font-size: 13px;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+.decision-rationale {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+.decision-verdict {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 500;
+  display: inline-block;
+}
+.verdict-accepted { background: var(--success-bg); color: var(--success); }
+.verdict-rejected { background: var(--warning-bg); color: var(--warning); }
+.verdict-needs-redo { background: var(--danger-bg); color: var(--danger); }
+.verdict-pending { background: var(--neutral-bg); color: var(--neutral); }
+.verdict-approved { background: var(--success-bg); color: var(--success); }
+.verdict-changes-requested { background: var(--danger-bg); color: var(--danger); }
+
+/* Pending plan indicator — a small amber dot next to the Plans tab count */
+.pending-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--warning);
+  margin-left: 2px;
+  vertical-align: middle;
+}
+
+/* Pending-approvals top panel on L1 */
+.pending-panel {
+  background: var(--warning-bg);
+  border: 0.5px solid var(--warning);
+  border-radius: 8px;
+  padding: 14px 18px;
+  margin-bottom: 16px;
+}
+.pending-panel h2 {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--warning);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pending-panel-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+  font-size: 13px;
+  border-top: 0.5px solid color-mix(in srgb, var(--warning) 30%, transparent);
+}
+.pending-panel-row:first-of-type { border-top: none; }
+.pending-panel-row a {
+  color: var(--warning);
+  font-family: var(--font-mono);
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+}
+.pending-panel-row a:hover { text-decoration: underline; }
+.pending-panel-row .meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+/* Pending pill on intent row */
+.intent-pending-pill {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: var(--warning-bg);
+  color: var(--warning);
+  font-weight: 500;
+  margin-left: 4px;
+}
+
+.coverage-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 12px;
+  align-items: center;
+  font-size: 13px;
+}
+.coverage-meta {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-family: var(--font-mono);
+}
+.coverage-pct {
+  font-family: var(--font-mono);
+  font-weight: 500;
+}
+.coverage-pct.pass { color: var(--success); }
+.coverage-pct.fail { color: var(--danger); }
+
+/* ----- L3 Artifact viewer ----- */
+.artifact-view {
+  background: var(--bg-primary);
+  border: 0.5px solid var(--border);
+  border-radius: 8px;
+  padding: 24px 32px;
+}
+.artifact-view .header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 0.5px solid var(--border);
+}
+.artifact-view .header h2 {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin: 0;
+  font-family: var(--font-mono);
+}
+.artifact-view .nav {
+  display: flex;
+  gap: 8px;
+}
+.md-content {
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--text-primary);
+  max-width: 760px;
+}
+.md-content h1 { font-size: 22px; font-weight: 500; margin: 24px 0 16px; letter-spacing: -0.02em; }
+.md-content h2 { font-size: 18px; font-weight: 500; margin: 24px 0 12px; letter-spacing: -0.01em; }
+.md-content h3 { font-size: 15px; font-weight: 500; margin: 20px 0 8px; }
+.md-content p { margin: 0 0 14px; }
+.md-content ul, .md-content ol { margin: 0 0 14px; padding-left: 24px; }
+.md-content li { margin-bottom: 4px; }
+.md-content code {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  background: var(--bg-tertiary);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+.md-content pre {
+  background: var(--bg-tertiary);
+  border: 0.5px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 16px;
+  overflow-x: auto;
+  font-size: 13px;
+  margin: 0 0 16px;
+}
+.md-content pre code { background: none; padding: 0; }
+.md-content blockquote {
+  border-left: 3px solid var(--border-strong);
+  padding-left: 16px;
+  margin: 0 0 16px;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+.md-content a { color: var(--info); }
+.md-content hr { border: none; border-top: 0.5px solid var(--border); margin: 24px 0; }
+
+/* ----- Empty state / file picker ----- */
+.empty-state {
+  background: var(--bg-primary);
+  border: 0.5px solid var(--border);
+  border-radius: 8px;
+  padding: 60px 40px;
+  text-align: center;
+  margin-top: 24px;
+}
+.empty-state h2 { font-size: 16px; font-weight: 500; margin: 0 0 12px; }
+.empty-state p { color: var(--text-secondary); margin: 0 0 20px; max-width: 480px; margin-left: auto; margin-right: auto; }
+.empty-state .file-input {
+  display: inline-block;
+  cursor: pointer;
+  background: var(--accent);
+  color: white;
+  padding: 8px 20px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+}
+.empty-state .file-input input { display: none; }
+.empty-state .hint {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin-top: 16px;
+  font-family: var(--font-mono);
+}
+
+.placeholder-note {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  font-style: italic;
+  padding: 8px 12px;
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+  margin-top: 8px;
+}
+
+.kind-pill {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.kind-spec { background: var(--accent-bg); color: var(--accent-text); }
+.kind-fix { background: var(--warning-bg); color: var(--warning); }
+.kind-investigation { background: var(--danger-bg); color: var(--danger); }
+.kind-contract { background: var(--info-bg); color: var(--info); }
+</style>
+
+<div class="app">
+  <header class="header">
+    <div>
+      <h1>specship dashboard <span class="repo" id="repo-name"></span></h1>
+    </div>
+    <div class="controls">
+      <span id="data-status"></span>
+      <button class="btn subtle" onclick="reload()">Refresh</button>
+    </div>
+  </header>
+
+  <div id="content">
+    <!-- populated by JS -->
+  </div>
+</div>
+
+<script>
+// ============================================================================
+// Data layer — JSONL parsing + in-memory model
+// ============================================================================
+
+const state = {
+  events: [],
+  intents: [],            // sorted business intents (specs/fixes/investigations)
+  decisions: new Map(),   // decision_id → {logged, reviewed}
+  artifacts: new Map(),   // path → artifact metadata
+  sessions: new Map(),    // session_id → session data
+  view: 'list',           // 'list' | 'detail' | 'artifact'
+  selectedIntent: null,
+  selectedArtifact: null,
+  filter: 'all',
+};
+
+function parseJsonl(text) {
+  const events = [];
+  for (const line of text.split('\n')) {
+    if (!line.trim()) continue;
+    try { events.push(JSON.parse(line)); }
+    catch (e) { /* skip malformed lines silently */ }
+  }
+  return events.sort((a, b) => (a.ts || '').localeCompare(b.ts || ''));
+}
+
+function ingest(events) {
+  state.events = events;
+  state.artifacts.clear();
+  state.decisions.clear();
+  state.sessions.clear();
+
+  for (const e of events) {
+    const sid = e.session_id;
+    if (e.event_type === 'session_start') {
+      state.sessions.set(sid, {
+        session_id: sid,
+        command: e.command,
+        model: e.model,
+        recommended_model: e.recommended_model,
+        scope: e.scope,
+        parent_session_id: e.parent_session_id,
+        started_at: e.ts,
+        outcome: 'in-progress',
+        ended_at: null,
+        events: [],
+      });
+    }
+    if (sid && state.sessions.has(sid)) {
+      state.sessions.get(sid).events.push(e);
+    }
+    if (e.event_type === 'session_end') {
+      const s = state.sessions.get(sid);
+      if (s) { s.outcome = e.outcome; s.ended_at = e.ts; }
+    }
+    if (e.event_type === 'artifact_created') {
+      state.artifacts.set(e.artifact, {
+        path: e.artifact,
+        kind: e.kind,
+        ticket_id: e.ticket_id,
+        title: e.title,
+        status: e.status || 'draft',
+        first_seen: e.ts,
+        last_updated: e.ts,
+        parent_artifact: e.parent_artifact,
+        from_investigation: e.from_investigation,
+        case: e.case,
+        sessions: new Set([sid]),
+      });
+    }
+    if (e.event_type === 'artifact_updated') {
+      const a = state.artifacts.get(e.artifact);
+      if (a) {
+        if (e.status) a.status = e.status;
+        a.last_updated = e.ts;
+        a.sessions.add(sid);
+      }
+    }
+    if (e.event_type === 'decision_logged') {
+      state.decisions.set(e.decision_id || e.event_id, {
+        decision_id: e.decision_id || e.event_id,
+        session_id: sid,
+        artifact: e.artifact,
+        summary: e.summary,
+        rationale: e.rationale,
+        accepted: e.accepted,
+        ts: e.ts,
+        verdict: null,
+        reviewer_note: null,
+        reviewed_at: null,
+      });
+    }
+    if (e.event_type === 'decision_reviewed') {
+      const d = state.decisions.get(e.decision_id);
+      if (d) {
+        d.verdict = e.verdict;
+        d.reviewer_note = e.reviewer_note;
+        d.reviewed_at = e.ts;
+      }
+    }
+  }
+
+  // Build intents: any spec/fix/investigation is a top-level intent
+  state.intents = Array.from(state.artifacts.values())
+    .filter(a => ['spec', 'fix', 'investigation'].includes(a.kind))
+    .sort((a, b) => (b.first_seen || '').localeCompare(a.first_seen || ''));
+}
+
+// ============================================================================
+// Intent enrichment — pull together all related data for one intent
+// ============================================================================
+
+function buildIntentDetail(intent) {
+  // Collect every event that names this artifact
+  const directEvents = state.events.filter(e =>
+    e.artifact === intent.path ||
+    e.parent_artifact === intent.path ||
+    e.from_investigation === intent.path ||
+    e.source_artifact === intent.path
+  );
+
+  // Collect related sessions (any session that touched this artifact)
+  const relatedSessionIds = new Set();
+  for (const e of directEvents) {
+    if (e.session_id) relatedSessionIds.add(e.session_id);
+  }
+  // Pull in subagent children of those sessions
+  for (const sid of Array.from(relatedSessionIds)) {
+    const session = state.sessions.get(sid);
+    if (!session) continue;
+    for (const e of session.events) {
+      if (e.event_type === 'subagent_spawned' && e.child_session_id) {
+        relatedSessionIds.add(e.child_session_id);
+      }
+    }
+  }
+
+  const sessions = Array.from(relatedSessionIds)
+    .map(sid => state.sessions.get(sid))
+    .filter(Boolean)
+    .sort((a, b) => (a.started_at || '').localeCompare(b.started_at || ''));
+
+  // All events from related sessions, plus direct events
+  const allEvents = new Set(directEvents);
+  for (const s of sessions) {
+    for (const e of s.events) allEvents.add(e);
+  }
+  const events = Array.from(allEvents).sort((a, b) =>
+    (a.ts || '').localeCompare(b.ts || '')
+  );
+
+  // Decisions for this intent
+  const decisions = Array.from(state.decisions.values())
+    .filter(d => d.artifact === intent.path)
+    .sort((a, b) => (a.ts || '').localeCompare(b.ts || ''));
+
+  // Coverage measurements
+  const coverage = events.filter(e => e.event_type === 'coverage_measured');
+
+  // Drift findings
+  const drift = events.filter(e => e.event_type === 'drift_detected');
+
+  // Lessons
+  const lessons = events.filter(e => e.event_type === 'lesson_encoded');
+
+  // Plans for this intent — join plan_drafted (which has source_artifact)
+  // with plan_approved and plan_executing (which only carry plan_id).
+  // plan_approved/plan_executing don't have source_artifact, so we look them
+  // up across all state.events by plan_id.
+  const planDrafted = events.filter(e => e.event_type === 'plan_drafted' && e.source_artifact === intent.path);
+  const plans = planDrafted.map(d => {
+    const approved = state.events.find(e => e.event_type === 'plan_approved' && e.plan_id === d.plan_id);
+    const executing = state.events.find(e => e.event_type === 'plan_executing' && e.plan_id === d.plan_id);
+    return {
+      plan_id: d.plan_id,
+      scope: d.scope,
+      source_artifact: d.source_artifact,
+      plan_path: d.plan_path,
+      files_to_modify: d.files_to_modify || [],
+      estimated_decisions: d.estimated_decisions || 0,
+      drafted_at: d.ts,
+      verdict: approved ? approved.verdict : null,
+      reviewer_note: approved ? approved.reviewer_note : null,
+      reviewed_at: approved ? approved.ts : null,
+      executing_session: executing ? executing.session_id : null,
+      executed_at: executing ? executing.ts : null,
+    };
+  }).sort((a, b) => (a.drafted_at || '').localeCompare(b.drafted_at || ''));
+
+  // Generated artifacts (e.g., _generated/openapi/...)
+  const generated = Array.from(state.artifacts.values())
+    .filter(a => a.parent_artifact === intent.path);
+
+  // Superseding spec if this got superseded
+  const supersedingSpec = Array.from(state.artifacts.values())
+    .find(a => a.kind === 'spec' && a.from_investigation && intent.kind === 'investigation');
+
+  // Build the workflow stages — depends on kind
+  const stages = buildStages(intent, events, sessions, generated, decisions);
+
+  return { intent, events, sessions, decisions, coverage, drift, lessons, plans, generated, stages };
+}
+
+function buildStages(intent, events, sessions, generated, decisions) {
+  const stages = [];
+
+  // Stage 1: ticket
+  stages.push({
+    stage: 'ticket',
+    label: intent.ticket_id || '?',
+    substat: 'business intent',
+    complete: true,
+    artifact: null,
+  });
+
+  // Stage 2: the primary artifact (spec/fix/investigation)
+  stages.push({
+    stage: intent.kind,
+    label: filename(intent.path),
+    substat: 'status: ' + (intent.status || 'unknown'),
+    complete: ['done', 'closed-resolved', 'superseded', 'ready-for-review'].includes(intent.status),
+    active: ['in-progress', 'draft', 'signed-off', 'contract-locked', 'open', 'root-cause-identified'].includes(intent.status),
+    artifact: intent.path,
+  });
+
+  // Stage 3: generated artifacts (if any)
+  if (generated.length > 0) {
+    stages.push({
+      stage: 'contract',
+      label: '_generated/',
+      substat: generated.length + ' artifact' + (generated.length !== 1 ? 's' : ''),
+      complete: true,
+      artifact: generated[0].path,
+    });
+  }
+
+  // Stage 3.5: plan approval (only if /ship was used — plan_drafted events exist for this intent)
+  const planDraftedEvents = events.filter(e => e.event_type === 'plan_drafted');
+  const planApprovedEvents = events.filter(e => e.event_type === 'plan_approved');
+  if (planDraftedEvents.length > 0) {
+    const approvedCount = planApprovedEvents.filter(e => e.verdict === 'approved').length;
+    const rejectedCount = planApprovedEvents.filter(e => e.verdict === 'rejected' || e.verdict === 'changes-requested').length;
+    const pendingCount = planDraftedEvents.length - planApprovedEvents.length;
+    let substat;
+    if (pendingCount > 0) {
+      substat = pendingCount + ' awaiting review';
+    } else if (rejectedCount > 0) {
+      substat = approvedCount + ' approved · ' + rejectedCount + ' rejected';
+    } else {
+      substat = approvedCount + ' of ' + planDraftedEvents.length + ' approved';
+    }
+    stages.push({
+      stage: 'plan review',
+      label: '/ship plans',
+      substat: substat,
+      complete: pendingCount === 0 && approvedCount > 0,
+      active: pendingCount > 0,
+      artifact: null,
+    });
+  }
+
+  // Stage 4: work sessions
+  const workSessions = sessions.filter(s => s.command === 'work');
+  if (workSessions.length > 0) {
+    const scopes = workSessions.map(s => s.scope).filter(Boolean);
+    stages.push({
+      stage: 'work',
+      label: workSessions.length === 1 ? '/work' : '/work ×' + workSessions.length,
+      substat: scopes.length ? scopes.join(' + ') : 'execution',
+      complete: workSessions.every(s => s.outcome === 'completed'),
+      active: workSessions.some(s => s.outcome === 'in-progress'),
+      artifact: null,
+    });
+  }
+
+  // Stage 5: decision review
+  const reviewedDecisions = decisions.filter(d => d.verdict);
+  if (decisions.length > 0) {
+    stages.push({
+      stage: 'review',
+      label: '/review-decisions',
+      substat: reviewedDecisions.length + ' / ' + decisions.length + ' reviewed',
+      complete: reviewedDecisions.length === decisions.length && decisions.length > 0,
+      active: reviewedDecisions.length < decisions.length,
+      artifact: null,
+    });
+  }
+
+  // Stage 6: commits (approximated by gate_passed events)
+  const commits = events.filter(e => e.event_type === 'gate_passed' && e.source === 'pre-commit');
+  if (commits.length > 0) {
+    stages.push({
+      stage: 'commits',
+      label: 'commits ×' + commits.length,
+      substat: 'wall checks passed',
+      complete: true,
+      artifact: null,
+    });
+  }
+
+  return stages;
+}
+
+function filename(path) {
+  if (!path) return '';
+  return path.split('/').pop();
+}
+
+// ============================================================================
+// Friction signals — observations + suggested actions
+// ============================================================================
+
+function computeSignals() {
+  const signals = [];
+  const now = new Date();
+
+  // 1. Specs sitting in draft >7 days
+  const stuckDrafts = state.intents.filter(i =>
+    i.kind === 'spec' && i.status === 'draft' &&
+    (now - new Date(i.first_seen)) > 7 * 24 * 60 * 60 * 1000
+  );
+  if (stuckDrafts.length > 0) {
+    signals.push({
+      severity: 'warn',
+      observation: stuckDrafts.length + ' spec' + (stuckDrafts.length !== 1 ? 's' : '') + ' in draft for >7 days: ' +
+        stuckDrafts.slice(0, 3).map(s => s.ticket_id || filename(s.path)).join(', ') +
+        (stuckDrafts.length > 3 ? ' and ' + (stuckDrafts.length - 3) + ' more' : ''),
+      action: 'Either run /work to start execution, or close the spec if no longer needed.',
+    });
+  }
+
+  // 2. High decision volume per spec
+  const decisionsBySpec = new Map();
+  for (const d of state.decisions.values()) {
+    if (!d.artifact) continue;
+    decisionsBySpec.set(d.artifact, (decisionsBySpec.get(d.artifact) || 0) + 1);
+  }
+  const highDecisionSpecs = Array.from(decisionsBySpec.entries()).filter(([_, n]) => n >= 5);
+  if (highDecisionSpecs.length > 0) {
+    signals.push({
+      severity: 'info',
+      observation: highDecisionSpecs.length + ' spec' + (highDecisionSpecs.length !== 1 ? 's' : '') +
+        ' had 5+ decisions logged during /work — suggests under-specified Contract Surface.',
+      action: 'Consider tightening the Contract Surface in future specs or reviewing whether the rationale patterns suggest a CLAUDE.md invariant.',
+    });
+  }
+
+  // 3. Coverage failures with bypasses
+  const covFailures = state.events.filter(e => e.event_type === 'coverage_measured' && e.passed === false);
+  const bypasses = state.events.filter(e => e.event_type === 'gate_bypassed');
+  if (covFailures.length > 0 && bypasses.length > 0) {
+    signals.push({
+      severity: bypasses.length >= 3 ? 'critical' : 'warn',
+      observation: covFailures.length + ' coverage failure' + (covFailures.length !== 1 ? 's' : '') +
+        ' and ' + bypasses.length + ' pre-commit bypass' + (bypasses.length !== 1 ? 'es' : '') + '.',
+      action: 'Review whether bypasses align with the policy in CLAUDE.md. Repeated bypasses may indicate a threshold mismatch.',
+    });
+  }
+
+  // 4. Investigations that closed but never chained to a lesson
+  const closedInvs = state.intents.filter(i => i.kind === 'investigation' && i.status === 'closed-resolved');
+  const lessonsEncoded = state.events.filter(e => e.event_type === 'lesson_encoded').length;
+  if (closedInvs.length > 0 && lessonsEncoded < closedInvs.length * 0.3) {
+    signals.push({
+      severity: 'warn',
+      observation: closedInvs.length + ' resolved investigation' + (closedInvs.length !== 1 ? 's' : '') +
+        ' but only ' + lessonsEncoded + ' lesson' + (lessonsEncoded !== 1 ? 's' : '') + ' encoded — learning loop closure rate is low.',
+      action: 'For each closed-resolved investigation, run /encode-lesson after the fix holds for one usage cycle.',
+    });
+  }
+
+  // 5. Recommended-model divergence
+  const divergent = Array.from(state.sessions.values()).filter(s =>
+    s.model && s.recommended_model && s.model !== s.recommended_model
+  );
+  if (divergent.length >= 3) {
+    signals.push({
+      severity: 'info',
+      observation: divergent.length + ' session' + (divergent.length !== 1 ? 's' : '') +
+        ' used a different model than recommended.',
+      action: 'Review whether the deviations were intentional. Frequent divergence may indicate the recommendation needs updating in CLAUDE.md.',
+    });
+  }
+
+  // 6. Decisions never reviewed
+  const pendingReview = Array.from(state.decisions.values()).filter(d => !d.verdict);
+  if (pendingReview.length >= 5) {
+    signals.push({
+      severity: 'warn',
+      observation: pendingReview.length + ' logged decisions awaiting human review.',
+      action: 'Run /review-decisions on the specs with the most pending decisions before merging.',
+    });
+  }
+
+  // 7. /ship plans stuck waiting for approval
+  const planDrafted = state.events.filter(e => e.event_type === 'plan_drafted');
+  const planApproved = state.events.filter(e => e.event_type === 'plan_approved');
+  const planApprovedIds = new Set(planApproved.map(e => e.plan_id));
+  const pendingPlans = planDrafted.filter(e => !planApprovedIds.has(e.plan_id));
+  if (pendingPlans.length > 0) {
+    signals.push({
+      severity: pendingPlans.length >= 3 ? 'critical' : 'warn',
+      observation: pendingPlans.length + ' /ship plan' + (pendingPlans.length !== 1 ? 's' : '') +
+        ' drafted but not yet approved. /ship is paused waiting for your verdict.',
+      action: 'Return to the /ship session and approve or reject the pending plans. Each plan is under .specship/plans/<plan_id>.md.',
+    });
+  }
+
+  return signals;
+}
+
+// ============================================================================
+// Metrics
+// ============================================================================
+
+function computeMetrics() {
+  const intents = state.intents;
+  const sessions = Array.from(state.sessions.values());
+
+  const totalIntents = intents.length;
+  const active = intents.filter(i => ['in-progress', 'open', 'root-cause-identified', 'signed-off', 'contract-locked', 'ready-for-review'].includes(i.status)).length;
+  const done = intents.filter(i => ['done', 'closed-resolved', 'superseded'].includes(i.status)).length;
+  const blocked = intents.filter(i => ['stalled'].includes(i.status)).length;
+  const drafts = intents.filter(i => i.status === 'draft').length;
+
+  // Wall time per workflow — sum session durations
+  let totalSecs = 0;
+  for (const s of sessions) {
+    if (s.started_at && s.ended_at) {
+      totalSecs += (new Date(s.ended_at) - new Date(s.started_at)) / 1000;
+    }
+  }
+
+  const bypasses = state.events.filter(e => e.event_type === 'gate_bypassed').length;
+  const covFailures = state.events.filter(e => e.event_type === 'coverage_measured' && e.passed === false).length;
+
+  return {
+    totalIntents, active, done, blocked, drafts,
+    totalSessions: sessions.length,
+    totalSecs,
+    bypasses,
+    covFailures,
+  };
+}
+
+function formatDuration(secs) {
+  if (secs < 60) return Math.round(secs) + 's';
+  if (secs < 3600) return Math.round(secs / 60) + 'm';
+  if (secs < 86400) return Math.round(secs / 3600 * 10) / 10 + 'h';
+  return Math.round(secs / 86400 * 10) / 10 + 'd';
+}
+
+function formatDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+// ============================================================================
+// Rendering
+// ============================================================================
+
+function escapeHtml(s) {
+  return (s || '').replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+function renderMetricsRow(m) {
+  return `
+    <div class="metrics-row">
+      <div class="metric">
+        <div class="label">Business intents</div>
+        <div class="value">${m.totalIntents}</div>
+        <div class="sub">${m.active} active · ${m.done} done · ${m.drafts} draft</div>
+      </div>
+      <div class="metric">
+        <div class="label">Total sessions</div>
+        <div class="value">${m.totalSessions}</div>
+        <div class="sub">across all commands</div>
+      </div>
+      <div class="metric">
+        <div class="label">Wall time</div>
+        <div class="value">${formatDuration(m.totalSecs)}</div>
+        <div class="sub">sum of session durations</div>
+      </div>
+      <div class="metric placeholder">
+        <div class="label">Total cost</div>
+        <div class="value">pending</div>
+        <div class="sub">needs v0.11.0 token instrumentation</div>
+      </div>
+      <div class="metric">
+        <div class="label">Coverage failures</div>
+        <div class="value">${m.covFailures}</div>
+        <div class="sub">${m.bypasses} pre-commit bypass${m.bypasses !== 1 ? 'es' : ''}</div>
+      </div>
+    </div>
+  `;
+}
+
+function renderSignals() {
+  const signals = computeSignals();
+  if (signals.length === 0) {
+    return `
+      <div class="signals">
+        <h2><i class="ti ti-check"></i> Friction signals <span class="count">0</span></h2>
+        <div style="font-size: 13px; color: var(--text-tertiary); padding: 8px 0;">No signals to report — workflow is running cleanly.</div>
+      </div>
+    `;
+  }
+  return `
+    <div class="signals">
+      <h2>Friction signals <span class="count">${signals.length}</span></h2>
+      ${signals.map(s => `
+        <div class="signal">
+          <div class="dot ${s.severity}"></div>
+          <div class="body">
+            <div class="observation">${escapeHtml(s.observation)}</div>
+            <div class="action">${escapeHtml(s.action)}</div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function renderIntentRow(intent, hasPending) {
+  const sel = state.selectedIntent === intent.path ? 'selected' : '';
+  return `
+    <div class="intent-row ${sel}" onclick="selectIntent('${intent.path}')">
+      <div class="intent-ticket">${escapeHtml(intent.ticket_id || filename(intent.path))}${hasPending ? ' <span class="intent-pending-pill" title="plans awaiting approval">plan</span>' : ''}</div>
+      <div class="intent-title">${escapeHtml(intent.title || filename(intent.path))}</div>
+      <span class="kind-pill kind-${intent.kind}">${intent.kind}</span>
+      <span class="status-badge status-${intent.status}">${escapeHtml(intent.status || '?')}</span>
+      <span class="intent-date">${formatDate(intent.first_seen)}</span>
+    </div>
+  `;
+}
+
+function intentsWithPendingPlans() {
+  // For each intent, see if it has plan_drafted events without a matching plan_approved
+  const out = new Map(); // intent.path -> { intent, count }
+  for (const e of state.events) {
+    if (e.event_type !== 'plan_drafted') continue;
+    const intent = state.intents.find(i => i.path === e.source_artifact);
+    if (!intent) continue;
+    const approved = state.events.find(a => a.event_type === 'plan_approved' && a.plan_id === e.plan_id);
+    if (approved) continue;
+    if (!out.has(intent.path)) out.set(intent.path, { intent, plans: [] });
+    out.get(intent.path).plans.push(e);
+  }
+  return Array.from(out.values());
+}
+
+function renderPendingApprovals() {
+  const pending = intentsWithPendingPlans();
+  if (pending.length === 0) return '';
+  return `
+    <div class="pending-panel">
+      <h2>Plans awaiting your approval <span style="font-size: 11px; color: var(--text-secondary); font-weight: normal;">return to your /ship session to approve or reject</span></h2>
+      ${pending.map(p => {
+        const scopes = p.plans.map(x => x.scope).filter(Boolean);
+        const planList = p.plans.length;
+        return `
+          <div class="pending-panel-row">
+            <div>
+              <a onclick="selectIntent('${escapeHtml(p.intent.path)}')">${escapeHtml(p.intent.ticket_id || filename(p.intent.path))}</a>
+              <span style="font-size: 12px; color: var(--text-secondary); margin-left: 8px;">${escapeHtml(p.intent.title || '')}</span>
+            </div>
+            <div class="meta">
+              ${planList} plan${planList !== 1 ? 's' : ''} · ${scopes.length ? scopes.join(' + ') : '?'}
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+function renderL1() {
+  const m = computeMetrics();
+  const pendingPaths = new Set(intentsWithPendingPlans().map(p => p.intent.path));
+  const filtered = state.intents.filter(i => {
+    if (state.filter === 'all') return true;
+    if (state.filter === 'active') return ['in-progress', 'signed-off', 'contract-locked', 'ready-for-review', 'open', 'root-cause-identified', 'draft'].includes(i.status);
+    if (state.filter === 'done') return ['done', 'closed-resolved'].includes(i.status);
+    if (state.filter === 'spec') return i.kind === 'spec';
+    if (state.filter === 'fix') return i.kind === 'fix';
+    if (state.filter === 'investigation') return i.kind === 'investigation';
+    if (state.filter === 'pending-approval') return pendingPaths.has(i.path);
+    return true;
+  });
+
+  return `
+    ${renderMetricsRow(m)}
+    ${renderPendingApprovals()}
+    ${renderSignals()}
+    <div class="layout">
+      <div class="intents-list">
+        <div class="intents-toolbar">
+          <div>${filtered.length} of ${state.intents.length} intents</div>
+          <div class="filters">
+            ${['all', 'active', 'done', 'pending-approval', 'spec', 'fix', 'investigation'].map(f => `
+              <button class="filter-chip ${state.filter === f ? 'active' : ''}" onclick="setFilter('${f}')">${f}${f === 'pending-approval' && pendingPaths.size > 0 ? ' <span class="count" style="margin-left: 4px;">' + pendingPaths.size + '</span>' : ''}</button>
+            `).join('')}
+          </div>
+        </div>
+        ${filtered.length === 0 ?
+          '<div style="padding: 40px; text-align: center; color: var(--text-tertiary);">No intents match this filter.</div>' :
+          filtered.map(i => renderIntentRow(i, pendingPaths.has(i.path))).join('')
+        }
+      </div>
+    </div>
+  `;
+}
+
+function renderL2() {
+  const intent = state.intents.find(i => i.path === state.selectedIntent);
+  if (!intent) { state.view = 'list'; return renderL1(); }
+
+  const d = buildIntentDetail(intent);
+  const decisionVerdicts = {
+    accepted: d.decisions.filter(x => x.verdict === 'accepted').length,
+    rejected: d.decisions.filter(x => x.verdict === 'rejected').length,
+    needsRedo: d.decisions.filter(x => x.verdict === 'needs-redo').length,
+    pending: d.decisions.filter(x => !x.verdict).length,
+  };
+
+  return `
+    <div style="margin-bottom: 16px;">
+      <button class="btn subtle" onclick="backToList()"><i class="ti ti-arrow-left"></i> All intents</button>
+    </div>
+    <div class="detail-pane">
+      <div class="detail-header">
+        <div class="detail-title-row">
+          <div>
+            <h2 class="detail-title">${escapeHtml(intent.ticket_id || '')} · ${escapeHtml(intent.title || filename(intent.path))}</h2>
+            <div class="detail-meta">
+              <span><span class="kind-pill kind-${intent.kind}">${intent.kind}</span></span>
+              <span><span class="status-badge status-${intent.status}">${escapeHtml(intent.status)}</span></span>
+              <span>${escapeHtml(intent.path)}</span>
+              <span>opened ${formatDate(intent.first_seen)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="timeline">
+        <div class="timeline-header">Workflow timeline</div>
+        <div class="timeline-track">
+          ${d.stages.map(s => `
+            <div class="timeline-node ${s.complete ? 'complete' : ''} ${s.active ? 'active' : ''}"
+                 ${s.artifact ? `onclick="viewArtifact('${escapeHtml(s.artifact)}')"` : ''}>
+              <div class="stage">${escapeHtml(s.stage)}</div>
+              <div class="label">${escapeHtml(s.label)}</div>
+              <div class="substat">${escapeHtml(s.substat)}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <div class="tabs">
+        <div class="tab-bar">
+          <button class="tab active" data-tab="decisions">Decisions <span class="count">${d.decisions.length}</span></button>
+          <button class="tab" data-tab="plans">Plans <span class="count">${d.plans.length}</span>${d.plans.some(p => !p.verdict) ? ' <span class="pending-dot" title="awaiting approval"></span>' : ''}</button>
+          <button class="tab" data-tab="coverage">Coverage <span class="count">${d.coverage.length}</span></button>
+          <button class="tab" data-tab="drift">Drift <span class="count">${d.drift.length}</span></button>
+          <button class="tab" data-tab="lessons">Lessons <span class="count">${d.lessons.length}</span></button>
+          <button class="tab" data-tab="claude">Claude metrics</button>
+        </div>
+        <div class="tab-content" id="tab-content">
+          ${renderDecisionsTab(d.decisions)}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderDecisionsTab(decisions) {
+  if (decisions.length === 0) {
+    return '<div class="tab-empty">No decisions logged for this intent.</div>';
+  }
+  return decisions.map(d => {
+    const verdict = d.verdict || 'pending';
+    return `
+      <div class="decision">
+        <div class="decision-summary">${escapeHtml(d.summary || '(no summary)')}</div>
+        ${d.rationale ? `<div class="decision-rationale">${escapeHtml(d.rationale)}</div>` : ''}
+        <div>
+          <span class="decision-verdict verdict-${verdict.replace(/-/g, '-')}">${escapeHtml(verdict)}</span>
+          ${d.reviewer_note ? `<span style="font-size: 12px; color: var(--text-tertiary); margin-left: 8px;">${escapeHtml(d.reviewer_note)}</span>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderCoverageTab(coverage) {
+  if (coverage.length === 0) {
+    return '<div class="tab-empty">No coverage measurements for this intent.</div>';
+  }
+  return coverage.map(c => `
+    <div class="coverage-row">
+      <div>
+        <div>${escapeHtml(c.tool || '?')}</div>
+        <div class="coverage-meta">${c.files_measured || 0} files · threshold ${c.threshold_delta || '?'}%</div>
+      </div>
+      <div class="coverage-pct ${c.passed ? 'pass' : 'fail'}">${c.delta_pct ? c.delta_pct.toFixed(1) + '%' : '?'}</div>
+      <div style="font-size: 12px; color: var(--text-tertiary);">${formatDate(c.ts)}</div>
+    </div>
+  `).join('');
+}
+
+function renderDriftTab(drift) {
+  if (drift.length === 0) {
+    return '<div class="tab-empty">No drift detected for this intent.</div>';
+  }
+  return drift.map(dr => `
+    <div class="drift-row">
+      <div style="font-size: 13px;">${escapeHtml(dr.detail || '(no detail)')}</div>
+      <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 4px;">
+        check: ${escapeHtml(dr.check || '?')} · severity: ${escapeHtml(dr.severity || '?')} · ${formatDate(dr.ts)}
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderLessonsTab(lessons) {
+  if (lessons.length === 0) {
+    return '<div class="tab-empty">No lessons encoded from this intent.</div>';
+  }
+  return lessons.map(l => `
+    <div class="lesson-row">
+      <div style="font-size: 13px;">${escapeHtml(l.lesson_text || '?')}</div>
+      <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 4px;">
+        → ${escapeHtml(l.destination_path || '?')} · lesson_id: ${escapeHtml((l.lesson_id || '').slice(0, 12))}
+      </div>
+    </div>
+  `).join('');
+}
+
+function renderPlansTab(plans) {
+  if (plans.length === 0) {
+    return '<div class="tab-empty">No /ship plans drafted for this intent. (Plans appear only when /ship is used; direct /work invocations approve their plan inline and do not emit plan_drafted events.)</div>';
+  }
+  return plans.map(p => {
+    const verdict = p.verdict || 'pending';
+    const verdictClass = 'verdict-' + verdict.replace(/[^a-z-]/g, '-');
+    const fileCount = (p.files_to_modify || []).length;
+    const filesPreview = fileCount === 0 ? '(no files listed)' :
+      fileCount <= 3
+        ? p.files_to_modify.map(escapeHtml).join(', ')
+        : p.files_to_modify.slice(0, 3).map(escapeHtml).join(', ') + ' and ' + (fileCount - 3) + ' more';
+    return `
+      <div class="decision">
+        <div style="display: flex; gap: 10px; align-items: baseline; margin-bottom: 4px;">
+          <span style="font-family: var(--font-mono); font-size: 12px; color: var(--text-secondary);">${escapeHtml(p.scope || '?')}</span>
+          <span class="decision-verdict ${verdictClass}">${escapeHtml(verdict)}</span>
+          <span style="font-size: 11px; color: var(--text-tertiary);">drafted ${formatDate(p.drafted_at)}</span>
+          ${p.executed_at ? `<span style="font-size: 11px; color: var(--text-tertiary);">· executed ${formatDate(p.executed_at)}</span>` : ''}
+        </div>
+        <div style="font-size: 13px; margin-bottom: 4px;">${fileCount} file${fileCount !== 1 ? 's' : ''} · ${p.estimated_decisions || 0} decision${p.estimated_decisions !== 1 ? 's' : ''} expected</div>
+        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">${escapeHtml(filesPreview)}</div>
+        ${p.reviewer_note ? `<div style="font-size: 12px; color: var(--text-tertiary); font-style: italic; margin-top: 4px;">reviewer note: ${escapeHtml(p.reviewer_note)}</div>` : ''}
+        ${p.plan_path ? `<div style="font-size: 11px; color: var(--text-tertiary); margin-top: 4px;"><a href="#" onclick="viewArtifact('${escapeHtml(p.plan_path)}'); return false;" style="font-family: var(--font-mono);">${escapeHtml(p.plan_path)}</a></div>` : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+function renderClaudeTab() {
+  return `
+    <div style="padding: 16px 0;">
+      <div style="font-size: 13px; color: var(--text-primary); margin-bottom: 12px;">Per-query Claude metrics</div>
+      <div class="placeholder-note">
+        Token counts, model used per query, query duration, and estimated cost will appear here once <code>tokens_consumed</code>
+        and <code>query_completed</code> events are added to the ledger (planned for specship v0.11.0).
+        See SPECSHIP-DESIGN.md §3.10 for the model-pinning context that motivates this instrumentation.
+      </div>
+      <div style="margin-top: 16px; font-size: 13px; color: var(--text-secondary);">
+        What can be shown today from existing events:
+      </div>
+      <ul style="font-size: 13px; color: var(--text-secondary);">
+        <li>Number of sessions per command</li>
+        <li>Recommended vs actual model (from session_start)</li>
+        <li>Session wall-clock duration (from session_start → session_end timestamps)</li>
+      </ul>
+    </div>
+  `;
+}
+
+function renderL3() {
+  const path = state.selectedArtifact;
+  const a = state.artifacts.get(path);
+  // We don't have file content in the ledger — we'd need to load it.
+  // For now, show a stub explaining this.
+  return `
+    <div style="margin-bottom: 16px;">
+      <button class="btn subtle" onclick="backToDetail()"><i class="ti ti-arrow-left"></i> Back to ${escapeHtml(state.intents.find(i => i.path === state.selectedIntent)?.ticket_id || 'detail')}</button>
+    </div>
+    <div class="artifact-view">
+      <div class="header">
+        <h2>${escapeHtml(path)}</h2>
+        <div class="nav">
+          <button class="btn subtle" onclick="openLocalFile()"><i class="ti ti-folder-open"></i> Open .md from disk</button>
+        </div>
+      </div>
+      <div class="md-content">
+        <div class="placeholder-note">
+          The dashboard reads <code>events.jsonl</code> only — it doesn't read artifact file contents.
+          To view the spec, fix, or investigation source, open the file from disk:
+        </div>
+        <pre><code>${escapeHtml(path)}</code></pre>
+        <p style="color: var(--text-secondary); font-size: 13px;">
+          Artifact metadata from the ledger:
+        </p>
+        <ul style="font-size: 13px;">
+          ${a ? `
+            <li><code>kind</code>: ${escapeHtml(a.kind)}</li>
+            <li><code>status</code>: ${escapeHtml(a.status)}</li>
+            <li><code>ticket_id</code>: ${escapeHtml(a.ticket_id || '—')}</li>
+            <li><code>first_seen</code>: ${escapeHtml(a.first_seen)}</li>
+            <li><code>last_updated</code>: ${escapeHtml(a.last_updated)}</li>
+            ${a.parent_artifact ? `<li><code>parent_artifact</code>: ${escapeHtml(a.parent_artifact)}</li>` : ''}
+            ${a.from_investigation ? `<li><code>from_investigation</code>: ${escapeHtml(a.from_investigation)}</li>` : ''}
+          ` : '<li>not in events.jsonl</li>'}
+        </ul>
+      </div>
+    </div>
+  `;
+}
+
+function render() {
+  const content = document.getElementById('content');
+  if (state.events.length === 0) {
+    content.innerHTML = renderEmptyState();
+  } else if (state.view === 'list') {
+    content.innerHTML = renderL1();
+  } else if (state.view === 'detail') {
+    content.innerHTML = renderL2();
+    bindTabs();
+  } else if (state.view === 'artifact') {
+    content.innerHTML = renderL3();
+  }
+}
+
+function renderEmptyState() {
+  return `
+    <div class="empty-state">
+      <h2>Load a ledger</h2>
+      <p>
+        The dashboard reads from <code>events.jsonl</code> — the append-only audit log
+        that specship maintains in your repository. By default it looks for
+        <code>../ledger/events.jsonl</code> (relative to this dashboard file).
+        Or pick a file manually:
+      </p>
+      <label class="file-input">
+        Choose events.jsonl
+        <input type="file" accept=".jsonl,.json" onchange="loadFromFile(this.files[0])">
+      </label>
+      <div class="hint">expected path: .specship/ledger/events.jsonl</div>
+    </div>
+  `;
+}
+
+// ============================================================================
+// Interactions
+// ============================================================================
+
+function selectIntent(path) {
+  state.selectedIntent = path;
+  state.view = 'detail';
+  render();
+}
+function setFilter(f) {
+  state.filter = f;
+  render();
+}
+function backToList() {
+  state.view = 'list';
+  state.selectedIntent = null;
+  render();
+}
+function viewArtifact(path) {
+  state.selectedArtifact = path;
+  state.view = 'artifact';
+  render();
+}
+function backToDetail() {
+  state.view = 'detail';
+  state.selectedArtifact = null;
+  render();
+}
+function openLocalFile() {
+  // file:// URL — let the browser handle it
+  const p = state.selectedArtifact;
+  if (!p) return;
+  // Construct path relative to repo root (we're at .specship/dashboard/)
+  alert('Open this file in your editor:\n\n' + p + '\n\n(The dashboard cannot read filesystem files directly for security reasons.)');
+}
+
+function bindTabs() {
+  document.querySelectorAll('.tab').forEach(t => {
+    t.onclick = () => {
+      document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+      const intent = state.intents.find(i => i.path === state.selectedIntent);
+      if (!intent) return;
+      const d = buildIntentDetail(intent);
+      const c = document.getElementById('tab-content');
+      const tab = t.dataset.tab;
+      if (tab === 'decisions') c.innerHTML = renderDecisionsTab(d.decisions);
+      else if (tab === 'plans') c.innerHTML = renderPlansTab(d.plans);
+      else if (tab === 'coverage') c.innerHTML = renderCoverageTab(d.coverage);
+      else if (tab === 'drift') c.innerHTML = renderDriftTab(d.drift);
+      else if (tab === 'lessons') c.innerHTML = renderLessonsTab(d.lessons);
+      else if (tab === 'claude') c.innerHTML = renderClaudeTab();
+    };
+  });
+}
+
+// ============================================================================
+// Loading
+// ============================================================================
+
+function loadFromText(text, sourceLabel) {
+  const events = parseJsonl(text);
+  ingest(events);
+  document.getElementById('data-status').textContent = events.length + ' events · ' + sourceLabel;
+  render();
+}
+
+function loadFromFile(file) {
+  if (!file) return;
+  const r = new FileReader();
+  r.onload = e => loadFromText(e.target.result, file.name);
+  r.readAsText(file);
+}
+
+async function tryAutoLoad() {
+  const candidates = [
+    '../ledger/events.jsonl',
+    '.specship/ledger/events.jsonl',
+    './events.jsonl',
+  ];
+  for (const p of candidates) {
+    try {
+      const r = await fetch(p);
+      if (r.ok) {
+        const t = await r.text();
+        if (t.trim()) {
+          loadFromText(t, p);
+          return true;
+        }
+      }
+    } catch (e) { /* probably file:// — fetch may fail */ }
+  }
+  return false;
+}
+
+async function reload() {
+  if (await tryAutoLoad()) return;
+  document.getElementById('data-status').textContent = 'no auto-load source; use file picker';
+}
+
+// Auto-load on first paint
+(async () => {
+  const root = window.location.pathname.split('/').slice(-3, -1).join('/') || 'unknown';
+  document.getElementById('repo-name').textContent = '· ' + root;
+  if (!(await tryAutoLoad())) {
+    render(); // shows empty state
+  }
+})();
+</script>

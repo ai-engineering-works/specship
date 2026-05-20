@@ -35,7 +35,7 @@ mkdir -p "$LOCAL/skills/spec-reverse-engineer/references"
 
 # Commands (excluding the auxiliary README and test-fixtures — those
 # are bundle documentation, not slash commands)
-for cmd in spec contract work check fix investigate ship encode-lesson review-decisions; do
+for cmd in spec contract work check fix investigate ship encode-lesson review-decisions capture-lessons review-lessons; do
     cp "$DIST/commands/${cmd}.md" "$LOCAL/commands/${cmd}.md"
 done
 
@@ -62,6 +62,15 @@ chmod +x "$LOCAL/coverage/coverage-check.py"
 mkdir -p "$LOCAL/dashboard"
 cp "$DIST/dashboard/dashboard.html" "$LOCAL/dashboard/dashboard.html"
 cp "$DIST/dashboard/README.md" "$LOCAL/dashboard/README.md"
+
+# Lessons helpers — curate pipeline and query library
+mkdir -p "$LOCAL/lessons"
+cp "$DIST/lessons/lessons_query.py"   "$LOCAL/lessons/lessons_query.py"
+cp "$DIST/lessons/curate.py"          "$LOCAL/lessons/curate.py"
+cp "$DIST/lessons/curate.sh"          "$LOCAL/lessons/curate.sh"
+cp "$DIST/lessons/selftest.py"        "$LOCAL/lessons/selftest.py"
+cp "$DIST/lessons/HOW-IT-WORKS.md"   "$LOCAL/lessons/HOW-IT-WORKS.md"
+chmod +x "$LOCAL/lessons/curate.sh" "$LOCAL/lessons/curate.py"
 
 # Skill: claude-md-architect
 cp "$DIST/skill/claude-md-architect/SKILL.md" "$LOCAL/skills/claude-md-architect/SKILL.md"
