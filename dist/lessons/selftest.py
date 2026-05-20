@@ -106,10 +106,62 @@ def test_decay_expires_old_pending_only():
         print("PASS test_decay_expires_old_pending_only")
 
 
+def test_cluster_groups_similar_same_type():
+    with tempfile.TemporaryDirectory() as td:
+        repo = Path(td)
+        (repo / ".git").mkdir()
+        ledger_dir = repo / ".specship" / "ledger"
+        # three tooling candidates all about "contract hash mismatch", high overlap
+        _write_events(ledger_dir, [
+            {"ts": _iso(1), "event_type": "lesson_candidate", "candidate_id": "h1",
+             "lesson_text": "contract hash mismatch blocks work command",
+             "lesson_type": "tooling", "session_id": "s1", "confidence": "high"},
+            {"ts": _iso(1), "event_type": "lesson_candidate", "candidate_id": "h2",
+             "lesson_text": "contract hash mismatch blocks work again",
+             "lesson_type": "tooling", "session_id": "s2", "confidence": "high"},
+            {"ts": _iso(1), "event_type": "lesson_candidate", "candidate_id": "h3",
+             "lesson_text": "contract hash mismatch blocks work each time",
+             "lesson_type": "tooling", "session_id": "s3", "confidence": "high"},
+            # an unrelated preference candidate, different type, must not join
+            {"ts": _iso(1), "event_type": "lesson_candidate", "candidate_id": "p1",
+             "lesson_text": "user prefers terse commit messages",
+             "lesson_type": "preference", "session_id": "s4", "confidence": "medium"},
+        ])
+        _rebuild(repo)
+        sys.path.insert(0, str(HERE))
+        import importlib, curate
+        importlib.reload(curate)
+        result = curate.run(repo, decay_days=30, cluster_threshold=3, jaccard=0.5)
+        assert len(result["clusters"]) == 1, result["clusters"]
+        cluster = result["clusters"][0]
+        assert cluster["theme"] == "tooling"
+        assert set(cluster["candidate_ids"]) == {"h1", "h2", "h3"}, cluster
+        print("PASS test_cluster_groups_similar_same_type")
+
+
+def test_zero_pending_is_noop_with_event():
+    with tempfile.TemporaryDirectory() as td:
+        repo = Path(td)
+        (repo / ".git").mkdir()
+        (repo / ".specship" / "ledger").mkdir(parents=True)
+        (repo / ".specship" / "ledger" / "events.jsonl").write_text("")
+        _rebuild(repo)
+        sys.path.insert(0, str(HERE))
+        import importlib, curate
+        importlib.reload(curate)
+        result = curate.run(repo)
+        assert result["candidates_seen"] == 0, result
+        assert result["decayed_ids"] == [], result
+        assert result["clusters"] == [], result
+        print("PASS test_zero_pending_is_noop_with_event")
+
+
 def main() -> int:
     test_pending_candidates_excludes_terminal()
     test_session_has_candidates()
     test_decay_expires_old_pending_only()
+    test_cluster_groups_similar_same_type()
+    test_zero_pending_is_noop_with_event()
     print("\nALL PASS")
     return 0
 
