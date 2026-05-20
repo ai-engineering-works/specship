@@ -165,8 +165,10 @@ else
     echo "3/10  Slash commands (project-scoped → $CMD_DEST)"
 fi
 run "mkdir -p '$CMD_DEST'"
-for cmd in spec contract work check fix investigate ship encode-lesson review-decisions; do
-    safe_copy "$DIST/commands/${cmd}.md" "$CMD_DEST/${cmd}.md"
+for cmd_file in "$DIST/commands/"*.md; do
+    cmd_base=$(basename "$cmd_file")
+    [[ "$cmd_base" == "README.md" ]] && continue
+    safe_copy "$cmd_file" "$CMD_DEST/$cmd_base"
 done
 echo ""
 
