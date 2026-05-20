@@ -73,9 +73,43 @@ def test_session_has_candidates():
         print("PASS test_session_has_candidates")
 
 
+def test_decay_expires_old_pending_only():
+    with tempfile.TemporaryDirectory() as td:
+        repo = Path(td)
+        (repo / ".git").mkdir()
+        ledger_dir = repo / ".specship" / "ledger"
+        _write_events(ledger_dir, [
+            # old + pending -> should decay
+            {"ts": _iso(40), "event_type": "lesson_candidate", "candidate_id": "old",
+             "lesson_text": "old one", "lesson_type": "tooling", "session_id": "s1", "confidence": "low"},
+            # old + already dismissed -> must NOT decay
+            {"ts": _iso(40), "event_type": "lesson_candidate", "candidate_id": "olddone",
+             "lesson_text": "done", "lesson_type": "tooling", "session_id": "s1", "confidence": "low"},
+            {"ts": _iso(39), "event_type": "lesson_dismissed", "candidate_id": "olddone", "reason": "x"},
+            # recent + pending -> must NOT decay
+            {"ts": _iso(2), "event_type": "lesson_candidate", "candidate_id": "fresh",
+             "lesson_text": "fresh", "lesson_type": "tooling", "session_id": "s1", "confidence": "high"},
+        ])
+        _rebuild(repo)
+        sys.path.insert(0, str(HERE))
+        import importlib, curate
+        importlib.reload(curate)
+        result = curate.run(repo, decay_days=30, cluster_threshold=3, jaccard=0.5)
+        _rebuild(repo)
+        import lessons_query
+        statuses = {c_id: lessons_query.candidate_status(repo, c_id)
+                    for c_id in ("old", "olddone", "fresh")}
+        assert statuses["old"] == "decayed", statuses
+        assert statuses["olddone"] == "dismissed", statuses
+        assert statuses["fresh"] == "captured", statuses
+        assert "old" in result["decayed_ids"], result
+        print("PASS test_decay_expires_old_pending_only")
+
+
 def main() -> int:
     test_pending_candidates_excludes_terminal()
     test_session_has_candidates()
+    test_decay_expires_old_pending_only()
     print("\nALL PASS")
     return 0
 
