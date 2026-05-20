@@ -1,0 +1,110 @@
+---
+property_id: <UUID-suffix-or-short-hash>
+parent_spec: <path-to-spec-artifact>
+status: draft
+language: <python|typescript>
+generator: <hypothesis|fast-check>
+authored_by: <qa-author-name-or-handle>
+authored_at: <ISO-date>
+last_synced_to_spec_at: <ISO-date>
+max_examples: 100         # how many input cases the framework should generate
+
+# Action under test — same structure as scenarios
+action:
+  type: http              # http | function | event
+  method: POST
+  endpoint: /subscribe
+  # for type: function:
+  #   module: myapp.subscriptions
+  #   function: create_subscription
+
+# Input generators — declarative DSL, one entry per input field.
+# The generator translates each form to hypothesis / fast-check code.
+#
+# Supported forms (v1):
+#   int(min: M, max: N)
+#   float(min: M, max: N)
+#   string(min_len: M, max_len: N)
+#   enum[a, b, c]
+#   bool
+#   date(min: YYYY-MM-DD, max: YYYY-MM-DD)
+#   list(of: <subgen>, min_len: M, max_len: N)
+#   optional(<subgen>)
+#   dict(key1: <subgen>, key2: <subgen>, ...)
+#
+# Examples:
+#   customer_id: string(min_len: 1, max_len: 50)
+#   tier: enum[bronze, silver, gold]
+#   amount: int(min: 1, max: 1000000)
+#   start_date: date(min: 2020-01-01, max: 2030-12-31)
+#   tags: list(of: string(min_len: 1, max_len: 20), min_len: 0, max_len: 10)
+#   advisor_id: optional(string(min_len: 1, max_len: 50))
+generators:
+  customer_id: string(min_len: 1, max_len: 50)
+  tier: enum[bronze, silver, gold]
+  advisor_id: string(min_len: 1, max_len: 50)
+
+# The invariant, expressed as both prose and executable expression.
+invariant:
+  prose: "<one-sentence human description of the invariant>"
+  # The assert expression should be a Python expression (the generator
+  # translates to TypeScript when generator=fast-check). It can reference:
+  #   - the input variables (one per key in `generators:`)
+  #   - `actual` — the value returned by the action
+  #   - `actual_status` — HTTP status if action.type == http
+  #   - `actual_body` — response body if action.type == http
+  expression: "actual_body['tier'] in ('bronze', 'silver', 'gold')"
+
+# Optional: filter out inputs that shouldn't be tested (e.g., known invalid
+# combinations the system rejects with 400). The framework will silently
+# discard inputs failing this filter.
+input_filter: ""    # leave empty for no filter
+---
+
+# Property: <short human description>
+
+> **Source spec**: <path-to-spec>
+>
+> **What this property verifies**: <one sentence>
+
+## Why this property exists
+
+<2-4 sentences explaining what invariant this property proves. If this property
+fails six months from now (i.e., the framework finds a counterexample), what
+does that tell us about the system?>
+
+## Invariant (prose)
+
+<Full prose description of the invariant. Should match `invariant.prose` in
+frontmatter but with more detail.>
+
+## Input space
+
+<Narrative description of what inputs are being generated. Should match the
+`generators:` block in frontmatter.>
+
+For example:
+- `customer_id`: any non-empty string up to 50 characters
+- `tier`: one of bronze, silver, gold
+- `advisor_id`: any non-empty string up to 50 characters
+
+## Notes / limitations
+
+Property tests in v1 are **stateless** — they don't model multi-step state
+machines. If your invariant requires multiple operations (e.g., "after N
+subscribe calls, exactly N rows exist"), that's a stateful property and
+out of scope for this phase. Consider whether the invariant can be
+restated stateless ("each subscribe call produces a row with the expected
+shape") or whether it should be captured as a scenario instead.
+
+## Mutability
+
+Property artifacts evolve with the source spec, like scenarios. The
+`last_synced_to_spec_at` field tracks reconciliation. If a property fails,
+the fix is to fix the code or, if the contract intentionally changed, sync
+the property — never to weaken the assertion.
+
+To retire:
+1. `status: retired`
+2. `retired_at`, `retired_reason`
+3. Keep file as historical record

@@ -1,0 +1,141 @@
+---
+scenario_id: <UUID-suffix-or-short-hash>
+parent_spec: <path-to-spec-artifact>
+status: draft
+language: <python|typescript>
+generator: <pytest|jest>
+authored_by: <qa-author-name-or-handle>
+authored_at: <ISO-date>
+last_synced_to_spec_at: <ISO-date>
+
+# Action under test — structured for the generator
+action:
+  type: http              # http | function | event | command
+  method: POST            # HTTP method (for type: http)
+  endpoint: /subscribe    # endpoint path or function name
+  # for type: function:
+  #   module: myapp.subscriptions
+  #   function: create_subscription
+  # for type: event:
+  #   topic: subscriptions.requested
+  # for type: command:
+  #   command: ./scripts/run-batch.sh
+
+# Setup preconditions — fixture-style. The generator translates these to
+# pytest fixtures / Jest beforeEach blocks. Use free-form strings; the
+# generator does NOT execute these — it generates a stub the human wires up.
+setup:
+  - customer exists with id "cust-123" and no active subscription
+  - advisor "adv-77" is available for tier "gold"
+
+# Expected observable outcomes — each becomes one assertion in the generated test
+expectations:
+  - http_status: 201
+  - response_body_contains:
+      subscription_id: "<uuid>"
+      tier: gold
+      status: active
+  - side_effect: "subscription.created event published with payload matching response"
+  - db_row_exists: "subscriptions table contains row with customer_id=cust-123 and tier=gold"
+
+# OPTIONAL: UI flow for end-to-end Playwright test generation.
+# Only include this block if the scenario is user-facing (full-stack or frontend-only spec).
+# When present, the scenario generator emits BOTH an integration test AND a Playwright e2e test.
+# When absent, only the integration test is generated.
+#
+# Selector prefix vocabulary (favor semantic locators over CSS):
+#   text:<text>        → page.getByText('<text>')
+#   button:<name>      → page.getByRole('button', { name: '<name>' })
+#   link:<name>        → page.getByRole('link', { name: '<name>' })
+#   label:<text>       → page.getByLabel('<text>')
+#   testid:<id>        → page.getByTestId('<id>')
+#   placeholder:<text> → page.getByPlaceholder('<text>')
+#   anything else      → page.locator('<raw-css>')
+#
+# Step vocabulary:
+#   navigate: <url>              → page.goto(url)
+#   click: <selector>            → click element
+#   fill: <selector>, value: <v> → type text into input
+#   select: <selector>, value: <v> → select dropdown option
+#   wait_for: <selector>         → wait for element to appear
+#
+# Expectation vocabulary:
+#   url_matches: <pattern>       → expect(page).toHaveURL(...)
+#   visible: <selector>          → toBeVisible
+#   not_visible: <selector>      → not.toBeVisible
+#   text_contains: <text>        → page contains text
+ui_action:
+  start_url: "/signup"
+  steps:
+    - select: "label:Tier"
+      value: "gold"
+    - fill: "label:Advisor ID"
+      value: "adv-77"
+    - click: "button:Subscribe"
+  expect:
+    - url_matches: "/subscribe/success"
+    - visible: "text:Welcome to gold tier"
+---
+
+# Scenario: <short human description>
+
+> **Source spec**: <path-to-spec>
+>
+> **What this scenario verifies**: <one sentence>
+
+## Why this scenario exists
+
+<2-4 sentences explaining what user-facing capability this scenario proves
+works. If this scenario fails six months from now, what does that tell us
+about the system?>
+
+## Given
+
+<Narrative description of preconditions — should match the structured `setup`
+list in frontmatter. The frontmatter is what the generator reads; this prose
+is for the human reviewer.>
+
+- <precondition 1>
+- <precondition 2>
+
+## When
+
+<Narrative description of the action — should match the structured `action`
+in frontmatter.>
+
+`POST /subscribe` with payload:
+
+```json
+{
+  "customer_id": "cust-123",
+  "advisor_id": "adv-77",
+  "tier": "gold"
+}
+```
+
+## Then
+
+<Narrative description of each expected outcome — should match the structured
+`expectations` list in frontmatter.>
+
+- HTTP 201 returned
+- Response body includes a generated `subscription_id` and echoes `tier: gold`
+- `subscription.created` event is published exactly once
+- A row is inserted into `subscriptions` with the customer and tier
+
+## Notes / mutability
+
+Scenarios are **mutable when the source spec changes** (e.g., new field added,
+new error case enumerated). They are NOT mutable to paper over a failing test
+— if this scenario fails, either fix the code or, if the contract has
+intentionally changed, sync this scenario to the new spec and bump
+`last_synced_to_spec_at`.
+
+If the source spec is substantially revised, the dashboard will surface
+this scenario as "needs refresh" until `last_synced_to_spec_at` is updated.
+
+To retire a scenario (only when the path it tests is genuinely no longer
+relevant):
+1. Change `status:` to `retired`
+2. Add `retired_at` and `retired_reason` to frontmatter
+3. Do NOT delete — keep as historical record
