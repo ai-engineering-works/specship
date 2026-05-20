@@ -93,6 +93,11 @@ KNOWN_EVENT_TYPES = {
     "qa_artifact_updated",      # status change on a QA artifact
     "qa_tests_generated",       # /qa generated runnable test file(s) from an artifact
     "qa_waiver_granted",        # human granted a waiver to bypass /ship Stage 0 QA gate
+    "lesson_candidate",         # /capture-lessons recorded a lesson candidate
+    "lesson_dismissed",         # /review-lessons rejected a candidate
+    "lesson_promoted",          # a candidate was promoted via /encode-lesson --from-candidate
+    "lesson_decayed",           # curate.py expired an un-actioned candidate
+    "lessons_curated",          # curate.py completed a curator run
 }
 
 
@@ -200,6 +205,25 @@ CREATE TABLE IF NOT EXISTS lessons (
 
 CREATE INDEX IF NOT EXISTS ix_lessons_dest        ON lessons(destination_path);
 CREATE INDEX IF NOT EXISTS ix_lessons_investigation ON lessons(source_investigation);
+
+CREATE TABLE IF NOT EXISTS lesson_candidates (
+    candidate_id     TEXT PRIMARY KEY,
+    ts               TEXT NOT NULL,
+    session_id       TEXT,
+    lesson_text      TEXT,
+    lesson_type      TEXT,
+    evidence_quote   TEXT,
+    source_command   TEXT,
+    source_artifact  TEXT,
+    confidence       TEXT,
+    status           TEXT,    -- 'captured' | 'promoted' | 'dismissed' | 'decayed'
+    terminal_ts      TEXT,    -- when it left 'captured'
+    terminal_detail  TEXT     -- reason (dismissed) | lesson_id (promoted) | run_id (decayed)
+);
+
+CREATE INDEX IF NOT EXISTS ix_lesson_cand_status ON lesson_candidates(status);
+CREATE INDEX IF NOT EXISTS ix_lesson_cand_session ON lesson_candidates(session_id);
+CREATE INDEX IF NOT EXISTS ix_lesson_cand_type ON lesson_candidates(lesson_type);
 
 CREATE TABLE IF NOT EXISTS breaking_changes (
     event_id        TEXT PRIMARY KEY,
@@ -399,6 +423,50 @@ def index_event(conn: sqlite3.Connection, event: dict[str, Any]) -> None:
                 event.get("lesson_text"),
             ),
         )
+    elif et == "lesson_candidate":
+        conn.execute(
+            "INSERT INTO lesson_candidates "
+            "(candidate_id, ts, session_id, lesson_text, lesson_type, "
+            " evidence_quote, source_command, source_artifact, confidence, status) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'captured') "
+            "ON CONFLICT(candidate_id) DO NOTHING",
+            (
+                event.get("candidate_id"), ts, session_id,
+                event.get("lesson_text"), event.get("lesson_type"),
+                event.get("evidence_quote"), event.get("source_command"),
+                event.get("source_artifact"), event.get("confidence"),
+            ),
+        )
+    elif et == "lesson_dismissed":
+        conn.execute(
+            "INSERT INTO lesson_candidates (candidate_id, ts, status, terminal_ts, terminal_detail) "
+            "VALUES (?, ?, 'dismissed', ?, ?) "
+            "ON CONFLICT(candidate_id) DO UPDATE SET "
+            "  status = 'dismissed', terminal_ts = excluded.terminal_ts, "
+            "  terminal_detail = excluded.terminal_detail",
+            (event.get("candidate_id"), ts, ts, event.get("reason")),
+        )
+    elif et == "lesson_promoted":
+        conn.execute(
+            "INSERT INTO lesson_candidates (candidate_id, ts, status, terminal_ts, terminal_detail) "
+            "VALUES (?, ?, 'promoted', ?, ?) "
+            "ON CONFLICT(candidate_id) DO UPDATE SET "
+            "  status = 'promoted', terminal_ts = excluded.terminal_ts, "
+            "  terminal_detail = excluded.terminal_detail",
+            (event.get("candidate_id"), ts, ts, event.get("lesson_id")),
+        )
+    elif et == "lesson_decayed":
+        conn.execute(
+            "INSERT INTO lesson_candidates (candidate_id, ts, status, terminal_ts, terminal_detail) "
+            "VALUES (?, ?, 'decayed', ?, ?) "
+            "ON CONFLICT(candidate_id) DO UPDATE SET "
+            "  status = 'decayed', terminal_ts = excluded.terminal_ts, "
+            "  terminal_detail = excluded.terminal_detail",
+            (event.get("candidate_id"), ts, ts, event.get("run_id")),
+        )
+    elif et == "lessons_curated":
+        # Digest event — kept in the events table only (no projection table).
+        pass
     elif et == "breaking_change_detected":
         conn.execute(
             "INSERT OR REPLACE INTO breaking_changes "
