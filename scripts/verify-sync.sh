@@ -33,7 +33,7 @@ check() {
     fi
 }
 
-for cmd in spec contract work check fix investigate ship encode-lesson review-decisions; do
+for cmd in spec contract work check fix investigate ship encode-lesson review-decisions capture-lessons review-lessons; do
     check "$DIST/commands/${cmd}.md" "$LOCAL/commands/${cmd}.md" "command: ${cmd}"
 done
 
@@ -60,6 +60,18 @@ check "$DIST/dashboard/dashboard.html" "$LOCAL/dashboard/dashboard.html" \
       "dashboard: dashboard.html"
 check "$DIST/dashboard/README.md" "$LOCAL/dashboard/README.md" \
       "dashboard: README.md"
+
+# Lessons helpers
+check "$DIST/lessons/lessons_query.py" "$LOCAL/lessons/lessons_query.py" \
+      "lessons: lessons_query.py"
+check "$DIST/lessons/curate.py"        "$LOCAL/lessons/curate.py" \
+      "lessons: curate.py"
+check "$DIST/lessons/curate.sh"        "$LOCAL/lessons/curate.sh" \
+      "lessons: curate.sh"
+check "$DIST/lessons/selftest.py"      "$LOCAL/lessons/selftest.py" \
+      "lessons: selftest.py"
+check "$DIST/lessons/HOW-IT-WORKS.md" "$LOCAL/lessons/HOW-IT-WORKS.md" \
+      "lessons: HOW-IT-WORKS.md"
 
 check "$DIST/skill/claude-md-architect/SKILL.md" \
       "$LOCAL/skills/claude-md-architect/SKILL.md" \
