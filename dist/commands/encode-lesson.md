@@ -21,6 +21,9 @@ Use `/encode-lesson` when:
 - You've observed the fix held in production (or in the relevant environment) for at least one cycle — premature encoding bakes in lessons that themselves turn out wrong
 - The bug class is one that could recur in a *different shape* — i.e., the lesson generalises beyond the specific code that was fixed
 - You've genuinely learned something new about the system, not just "we forgot to do X"
+- A lesson candidate from `/capture-lessons` has been reviewed via `/review-lessons` and the
+  human chose to promote it (`--from-candidate <id>`) — the candidate path does not require a
+  formal investigation, but every other guardrail in this command still applies.
 
 Do NOT use `/encode-lesson` when:
 - The fix is a one-off (typo, copy-paste error, environment-specific) — generalising one-offs produces noise
@@ -36,10 +39,36 @@ Parse:
 - First positional argument: path to a `investigations/*.md` file
 - Optional `--fix fixes/<file>.md`: the fix that resolved this investigation (helps inform what changed)
 - Optional `--dest <path>`: explicit destination artifact for the invariant (skip the classification step)
+- Optional `--from-candidate <candidate_id>`: promote a lesson candidate captured by
+  `/capture-lessons` instead of starting from an investigation. When present, the first
+  positional investigation argument becomes optional — the candidate's `lesson_text`,
+  `lesson_type`, `evidence_quote`, and `source_artifact` stand in for the investigation's
+  root-cause material.
 
 If the investigation path is missing, ask which investigation. If multiple investigations are recent and resolved, list them.
 
 ## Pre-flight
+
+0. **If `--from-candidate <id>` was provided**, this is the candidate-sourced path. Skip the
+   investigation-status gate (steps 1-2 below) and instead read the candidate from the ledger:
+
+   ```bash
+   python3 .specship/ledger/specship_ledger.py query "
+       SELECT candidate_id, lesson_text, lesson_type, evidence_quote,
+              source_command, source_artifact, status
+       FROM lesson_candidates WHERE candidate_id = '<id>'
+   "
+   ```
+
+   - If the candidate does not exist, stop: "no such candidate <id>".
+   - If its `status` is not `captured` (already promoted/dismissed/decayed), stop and tell the
+     user the current status — do not re-promote.
+   - Use the candidate's `lesson_text` as the Stage 1 draft lesson, its `lesson_type` for the
+     Stage 2 classification, and its `source_artifact` as the linkback source. Then continue
+     at Stage 1 with the human-approval gate fully intact.
+
+   The investigation-sourced path (steps 1-2) is unchanged for invocations without
+   `--from-candidate`.
 
 1. **Read the investigation file.** Verify status is `closed-resolved`. If status is anything else, stop and tell the user:
    - `open` / `root-cause-identified` / `stalled` → "investigation isn't closed yet"
@@ -204,6 +233,18 @@ python3 .specship/ledger/specship_ledger.py log lesson_encoded \
     destination_path="\"<path>\"" \
     source_investigation="\"<investigation-path>\"" \
     source_fix="\"<fix-path-or-null>\"" \
+    --quiet
+```
+
+If this promotion came from `--from-candidate <id>`, ALSO log the candidate's terminal event
+so its status folds to `promoted`:
+
+```bash
+python3 .specship/ledger/specship_ledger.py log lesson_promoted \
+    candidate_id="\"<id>\"" \
+    lesson_id="\"<stable-hash>\"" \
+    destination_path="\"<path>\"" \
+    session_id="\"$SID\"" \
     --quiet
 ```
 
