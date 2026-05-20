@@ -72,6 +72,7 @@ Advisory, not enforced. Claude Code uses whatever model the user has selected. T
 - `python3 dist/lessons/selftest.py` — auto-lessons projection + curator self-test (ALL PASS)
 - `python3 -c "import py_compile; py_compile.compile('dist/lessons/curate.py', doraise=True)"` and same for `lessons_query.py`, `selftest.py`
 - `bash -n dist/lessons/curate.sh`
+- `for t in tests/e2e/selftest/*.sh; do bash "$t"; done` — e2e harness lib self-tests (no tokens)
 
 ## Where things live
 
