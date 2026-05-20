@@ -89,6 +89,10 @@ KNOWN_EVENT_TYPES = {
     "plan_drafted",             # /work --plan-only produced a plan awaiting approval (for /ship orchestration)
     "plan_approved",            # /ship orchestrator recorded human verdict on a drafted plan
     "plan_executing",           # /work --from-plan started executing a previously approved plan
+    "qa_artifact_created",      # /qa created a regression/property/scenario artifact
+    "qa_artifact_updated",      # status change on a QA artifact
+    "qa_tests_generated",       # /qa generated runnable test file(s) from an artifact
+    "qa_waiver_granted",        # human granted a waiver to bypass /ship Stage 0 QA gate
 }
 
 
@@ -251,6 +255,31 @@ CREATE TABLE IF NOT EXISTS plans (
 CREATE INDEX IF NOT EXISTS ix_plans_verdict ON plans(verdict);
 CREATE INDEX IF NOT EXISTS ix_plans_source ON plans(source_artifact);
 CREATE INDEX IF NOT EXISTS ix_plans_parent ON plans(parent_session);
+
+CREATE TABLE IF NOT EXISTS qa_artifacts (
+    path             TEXT PRIMARY KEY,
+    kind             TEXT,    -- 'regression' | 'property' | 'scenario'
+    parent_intent    TEXT,    -- spec/fix/investigation that motivated this
+    current_status   TEXT,    -- 'draft' | 'approved' | 'generated' | 'retired'
+    test_file_path   TEXT,    -- the generated test file, if any
+    generator_used   TEXT,    -- 'pytest' | 'jest' | 'hypothesis' | 'fast-check'
+    language         TEXT,    -- 'python' | 'typescript'
+    first_seen       TEXT,
+    last_updated     TEXT
+);
+CREATE INDEX IF NOT EXISTS ix_qa_kind ON qa_artifacts(kind);
+CREATE INDEX IF NOT EXISTS ix_qa_parent ON qa_artifacts(parent_intent);
+
+CREATE TABLE IF NOT EXISTS qa_waivers (
+    event_id                 TEXT PRIMARY KEY,
+    session_id               TEXT,
+    target_intent            TEXT NOT NULL,
+    waiver_granted_by        TEXT,
+    reason                   TEXT,
+    target_resolution_date   TEXT,
+    ts                       TEXT
+);
+CREATE INDEX IF NOT EXISTS ix_waivers_target ON qa_waivers(target_intent);
 
 CREATE TABLE IF NOT EXISTS schema_meta (
     key   TEXT PRIMARY KEY,
@@ -446,6 +475,76 @@ def index_event(conn: sqlite3.Connection, event: dict[str, Any]) -> None:
                 ts,
                 session_id,
                 event.get("plan_id"),
+            ),
+        )
+
+    elif et == "qa_artifact_created":
+        path = event.get("path") or event.get("artifact")
+        if not path:
+            return
+        conn.execute(
+            "INSERT OR IGNORE INTO qa_artifacts "
+            "(path, kind, parent_intent, current_status, first_seen, last_updated) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (
+                path,
+                event.get("kind"),
+                event.get("parent_intent"),
+                event.get("status") or "draft",
+                ts,
+                ts,
+            ),
+        )
+
+    elif et == "qa_artifact_updated":
+        path = event.get("path") or event.get("artifact")
+        if not path:
+            return
+        new_status = event.get("status")
+        if new_status:
+            conn.execute(
+                "UPDATE qa_artifacts SET current_status = ?, last_updated = ? WHERE path = ?",
+                (new_status, ts, path),
+            )
+        else:
+            conn.execute(
+                "UPDATE qa_artifacts SET last_updated = ? WHERE path = ?",
+                (ts, path),
+            )
+
+    elif et == "qa_tests_generated":
+        qa_path = event.get("qa_artifact_path") or event.get("path")
+        if not qa_path:
+            return
+        conn.execute(
+            "UPDATE qa_artifacts SET test_file_path = ?, generator_used = ?, "
+            "language = ?, current_status = ?, last_updated = ? WHERE path = ?",
+            (
+                event.get("test_file_path"),
+                event.get("generator_used"),
+                event.get("language"),
+                "generated",
+                ts,
+                qa_path,
+            ),
+        )
+
+    elif et == "qa_waiver_granted":
+        target = event.get("target_intent")
+        if not target:
+            return
+        conn.execute(
+            "INSERT OR REPLACE INTO qa_waivers "
+            "(event_id, session_id, target_intent, waiver_granted_by, reason, "
+            "target_resolution_date, ts) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (
+                eid,
+                session_id,
+                target,
+                event.get("waiver_granted_by"),
+                event.get("reason"),
+                event.get("target_resolution_date"),
+                ts,
             ),
         )
 
@@ -702,6 +801,27 @@ def summary(since: str | None = None) -> str:
             f"pending: {r['pending'] or 0}"
         )
         lines.append(f"  executed: {r['executed'] or 0} of {r['approved'] or 0} approved")
+
+    # QA artifacts
+    rows = conn.execute(
+        "SELECT kind, COUNT(*) AS n, "
+        "SUM(CASE WHEN current_status = 'generated' THEN 1 ELSE 0 END) AS generated "
+        "FROM qa_artifacts GROUP BY kind ORDER BY n DESC"
+    ).fetchall()
+    if rows:
+        lines.append("")
+        lines.append("QA artifacts:")
+        for r in rows:
+            kind = r['kind'] or 'unknown'
+            lines.append(f"  {kind:<14} {r['n']:>3}  (generated tests: {r['generated'] or 0})")
+
+    # QA waivers
+    waivers = conn.execute(
+        "SELECT COUNT(*) AS total FROM qa_waivers"
+    ).fetchone()
+    if waivers and waivers['total']:
+        lines.append("")
+        lines.append(f"QA waivers granted: {waivers['total']}")
 
     conn.close()
     return "\n".join(lines)
