@@ -21,6 +21,49 @@ promotion path:
 
 Spec: specs/2026-05-20-auto-lessons-continual-learning.md
 
+### Added — QA artifact subsystem (`/qa`, `/show`)
+
+Correctness specifications that outlive any one implementation. Unit tests written during
+`/work` verify "did Claude exercise this code"; QA artifacts verify "does the system honor
+the intent" and survive refactors because they live alongside specs/fixes, not in the code.
+
+- **`/qa <intent>`** — authors three artifact kinds via a structured interview, each tracing
+  back to a parent spec or fix:
+  - **Regression** — a frozen input/output pair captured at fix time; append-only by
+    convention, with a mandatory `parent_fix`. The documented correction pattern is
+    retire + re-create, never mutate an approved artifact.
+  - **Scenario** — a given/when/then path derived from a spec's Contract Surface and
+    Acceptance Criteria; one file per scenario under `scenarios/<spec-slug>/`.
+  - **Property** — an invariant plus an input-space DSL; the generator produces many inputs
+    and shrinks failures to a minimal counterexample. Stateless only in v1.
+- **Test generators** under `dist/qa-generators/` compile artifacts into runnable tests under
+  `tests/regression/`, `tests/scenario/`, `tests/property/` — targeting pytest or Jest. Each
+  generated file carries an `# AUTO-GENERATED` header, a `§qa:` linkback, and a content hash.
+- **Playwright e2e** — scenario and regression artifacts for frontend-touching specs can carry
+  a `ui_action:` block (semantic-locator DSL + `test.use({ video: 'on' })`), emitting an
+  additional `.spec.ts` under `tests/e2e/`. Property artifacts deliberately don't support it.
+- **`/show`** — read-only discovery of specs, fixes, investigations, and QA artifacts by
+  title, ticket ID, kind, or status, without leaving the chat.
+- New QA templates under `dist/templates/` (`regression`, `scenario`, `property`) and the
+  authoring guide `dist/templates/HOW-TO-AUTHOR-QA.md`.
+- Ledger support for `qa_artifact_created`, `qa_artifact_updated`, `qa_tests_generated`, and
+  `qa_waiver_granted` events, plus a `qa_waivers` table.
+- **Advisory pre-commit QA checks** — new `dist/hooks/qa-check.py`, invoked best-effort by the
+  pre-commit hook and installed to `.specship/hooks/qa-check.py`. It warns (never blocks) when
+  (a) a commit edits the `Input` or `Expected output` of an already-approved regression artifact
+  (append-only), and (b) a generated test drifts from its source artifact — a test modified
+  without its artifact, or an artifact modified without its `generated_test` being regenerated.
+  Drift is detected by staging membership rather than the embedded content hash, because `/qa`
+  rewrites artifact frontmatter after the hash is stamped. The Wall itself stays pure-bash; this
+  layer reuses `python3` (already required by the coverage gate) and no-ops if it is unavailable.
+
+Note: this subsystem is partially landed. The `/qa` and `/show` prompts, generators, templates,
+ledger schema, and the advisory pre-commit checks above are in place. Still not wired into the
+command files: the mandatory `Invariants` section in `/spec`, and the `/ship` Stage 0 QA gate
+that consumes `qa_waivers`.
+
+Docs: dist/templates/HOW-TO-AUTHOR-QA.md
+
 ### Added — v0.12.0 (renamed from attest to specship)
 
 **This is a brand change, not a behaviour change.** Everything attest did, specship does — same commands, same ledger, same workflow. The audit trail under the old name is preserved exactly. Only the names, paths, and binaries change.

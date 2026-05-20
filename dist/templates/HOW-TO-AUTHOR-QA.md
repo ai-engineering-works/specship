@@ -547,7 +547,13 @@ its source artifact:
 # Content hash: abc123...
 ```
 
-The pre-commit hook detects hand edits to generated files by comparing the
-content hash and warns. To intentionally modify a generated test, either:
+The pre-commit hook (via the advisory `.specship/hooks/qa-check.py` helper)
+warns when a generated test drifts from its source artifact. The signal is
+staging membership, not the content hash — a legitimate change always stages
+the artifact and its regenerated test together, so the hook flags two
+asymmetries: a generated test modified without its source artifact, and an
+artifact modified without its recorded `generated_test` being regenerated.
+The warning is advisory and never blocks the commit. To intentionally modify
+a generated test, either:
 - Edit the source artifact and re-run `/qa` (preferred), or
 - Remove the auto-generated header to claim manual ownership.

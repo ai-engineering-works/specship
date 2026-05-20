@@ -141,7 +141,7 @@ echo ""
 
 # 2. Directories
 echo "2/10  Directories"
-for dir in specs fixes investigations _generated .specship .specship/ledger .specship/contract .specship/coverage .specship/dashboard .specship/plans .specship/lessons; do
+for dir in specs fixes investigations _generated .specship .specship/ledger .specship/contract .specship/coverage .specship/dashboard .specship/plans .specship/lessons .specship/hooks; do
     if [[ -d "$TARGET/$dir" ]]; then
         echo "  exists: $TARGET/$dir/"
     else
@@ -179,6 +179,9 @@ else
     echo "4/10  Pre-commit hook"
     safe_copy "$DIST/hooks/pre-commit" "$TARGET/.git/hooks/pre-commit"
     run "chmod +x '$TARGET/.git/hooks/pre-commit'"
+    # Advisory QA helper invoked best-effort by the hook (never blocks).
+    safe_copy "$DIST/hooks/qa-check.py" "$TARGET/.specship/hooks/qa-check.py"
+    run "chmod +x '$TARGET/.specship/hooks/qa-check.py'"
 fi
 echo ""
 

@@ -29,7 +29,7 @@ The specship workflow distribution repo. Holds the canonical source of the slash
 - The source of truth for commands, the skill, and the hook is `dist/`. `.claude/` is a generated copy.
 - `.claude/` must always be in sync with `dist/` at commit time. Verified by `./scripts/verify-sync.sh` in CI.
 - `dist/commands/contract_hash.py` is reference documentation only. The hash algorithm is re-implemented inline in `dist/commands/contract.md`. If the algorithm changes, BOTH files must be updated together — drift between them is a correctness bug.
-- The pre-commit hook in `dist/hooks/pre-commit` is portable bash 4+. No GNU-specific flags, no dependencies beyond `git`, `grep`, `find`, `cmp`. Verified against the 5 test scenarios.
+- The pre-commit hook in `dist/hooks/pre-commit` is portable bash 4+ with no GNU-specific flags. Its **blocking** path (the Wall) depends only on `git`, `grep`, `find`, `cmp`. **Soft, advisory** layers (the coverage gate, and the QA checks in `dist/hooks/qa-check.py`) may shell out to `python3` but MUST degrade silently to a no-op when it is absent — they never block a commit. Verified against the 5 test scenarios.
 - The skill body (`dist/skill/claude-md-architect/SKILL.md`) is ≤500 lines. Detail goes into `references/` files which load on demand.
 - No file under `dist/` exceeds 500 lines without a documented reason. Long files indicate something belongs in a reference.
 
@@ -67,6 +67,7 @@ Advisory, not enforced. Claude Code uses whatever model the user has selected. T
 - `python3 dist/commands/contract_hash.py dist/commands/test-fixtures/spec-before.md` and `...spec-after.md` produce identical output (hash mechanism invariant)
 - `python3 dist/ledger/specship_ledger.py log session_start command='"smoke"' --quiet && python3 dist/ledger/specship_ledger.py rebuild-index` — ledger smoke test
 - `python3 -c "import py_compile; py_compile.compile('dist/contract/breaking-change-fallback.py', doraise=True)"` — breaking-change detector syntax
+- `python3 -c "import py_compile; py_compile.compile('dist/hooks/qa-check.py', doraise=True)"` — advisory QA hook helper syntax
 - All `*.md` files under `dist/` and `docs/` parse as well-formed markdown (no broken links to non-existent reference files)
 - `python3 dist/lessons/selftest.py` — auto-lessons projection + curator self-test (ALL PASS)
 - `python3 -c "import py_compile; py_compile.compile('dist/lessons/curate.py', doraise=True)"` and same for `lessons_query.py`, `selftest.py`
