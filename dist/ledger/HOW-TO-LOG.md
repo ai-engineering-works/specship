@@ -245,6 +245,38 @@ Events to log:
   ```
 - `session_end` with outcome="completed" if any lesson was encoded, "abandoned" if the user rejected all candidates.
 
+### `/capture-lessons` command
+
+Log `session_start`, then one `lesson_candidate` per captured lesson (≤3), then `session_end`.
+
+```bash
+python3 .specship/ledger/specship_ledger.py log lesson_candidate \
+    candidate_id="\"$CID\"" lesson_text="\"...\"" lesson_type="\"tooling\"" \
+    evidence_quote="\"...\"" source_command="\"/work\"" source_artifact="\"\"" \
+    confidence="\"high\"" session_id="\"$SID\"" --quiet
+```
+
+### `/review-lessons` command
+
+Log `session_start`, one `lesson_dismissed` per dismissed candidate, `session_end`.
+Promotions are logged by `/encode-lesson` (as `lesson_promoted`), not here.
+
+```bash
+python3 .specship/ledger/specship_ledger.py log lesson_dismissed \
+    candidate_id="\"$CID\"" reason="\"noise\"" session_id="\"$SID\"" --quiet
+```
+
+### Curator (`curate.py`)
+
+Emits `lesson_decayed` per expired candidate and one `lessons_curated` digest per run. The
+curator logs these itself; no command authoring is needed. Query the latest digest with:
+
+```bash
+python3 .specship/ledger/specship_ledger.py query "
+    SELECT ts, raw_json FROM events WHERE event_type='lessons_curated' ORDER BY ts DESC LIMIT 1
+"
+```
+
 ### `/review-decisions` command
 
 Events to log:

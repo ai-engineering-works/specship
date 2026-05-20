@@ -155,8 +155,10 @@ In a regulated environment, the investigation record is often more important tha
 | `/check <spec-or-fix> [--deep]` | Detect drift between a spec/fix and the code |
 | `/investigate <ticket>` | Investigate a failure (compile error, runtime error, broken CI, production incident) — produces an investigation file with evidence and root cause |
 | `/fix <ticket> --against <spec> [--from-investigation <inv>]` | Bug fix against an existing spec — four-case classification, can chain from `/investigate` |
-| `/encode-lesson <investigation> [--fix <fix>]` | Promote a lesson learned from a resolved investigation into a durable invariant in CLAUDE.md (or nested CLAUDE.md, skill gotchas, or command prompt). Closes the learning loop. |
+| `/encode-lesson <investigation> [--fix <fix>] [--from-candidate <id>]` | Promote a lesson learned from a resolved investigation (or a reviewed candidate) into a durable invariant in CLAUDE.md (or nested CLAUDE.md, skill gotchas, or command prompt). Closes the learning loop. |
 | `/review-decisions [<spec>] [--since DATE]` | Surface decisions Claude logged during `/work` for human review. Mark each as accepted, rejected, or needs-redo. Closes the human-in-loop gap. |
+| `/capture-lessons` | Record up to 3 lesson candidates from the current session — corrections, confirmed approaches, preferences, surprising decisions. Runs automatically at session end; also callable manually. |
+| `/review-lessons [--since DATE]` | Triage pending lesson candidates: promote to `/encode-lesson`, dismiss, or skip. Surfaces clustered consolidation suggestions from the curator. |
 
 `/work` accepts either spec or fix files. `/check` is invoked automatically by `/work` and can also be run manually. `/investigate` feeds into `/fix` via the `--from-investigation` flag. `/ship` only handles full-stack specs; for single-scope work, run `/work` directly. `/encode-lesson` requires the investigation to have status `closed-resolved`. `/review-decisions` reads from the ledger — it requires `/work` (or another command) to have logged decisions first.
 
@@ -252,6 +254,25 @@ python3 .specship/ledger/specship_ledger.py query "
 ```
 
 This answers the auditor question: "show me every lesson your team has encoded into the system as a result of an investigation."
+
+### Continual learning: auto-lessons
+
+specship captures lessons from finished sessions automatically and feeds them into the
+deliberate `/encode-lesson` promotion path:
+
+- **`/capture-lessons`** records up to 3 lesson candidates per session — user corrections,
+  confirmed approaches, preferences, surprising decisions. Runs automatically at session end
+  (via a `SessionEnd` hook the installer can wire up) and at the end of `/work`, `/ship`,
+  `/fix`. Idempotent per session.
+- **An hourly curator** (`.specship/lessons/curate.sh`, no LLM) decays stale candidates and
+  clusters related ones into consolidation suggestions. Add it to cron, or run
+  `./scripts/install.sh --with-cron` to wire it up.
+- **`/review-lessons`** surfaces pending candidates so you can promote, dismiss, or skip each.
+- **`/encode-lesson --from-candidate <id>`** promotes a reviewed candidate into a durable
+  CLAUDE.md invariant — same human-gated guardrails as the investigation path.
+
+Candidates never auto-write to CLAUDE.md; only the human-gated `/encode-lesson` does. The
+candidate buffer lives in the observability ledger and self-cleans via decay.
 
 ## Contract integrity (hash + structural diff)
 

@@ -6,6 +6,21 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+### Added — Auto-lessons continual-learning loop
+
+Added the automatic-capture half of a learning loop, feeding the existing /encode-lesson
+promotion path:
+- `/capture-lessons` — records ≤3 lesson candidates per session (SessionEnd hook + end of
+  /work,/ship,/fix); idempotent per session.
+- `dist/lessons/curate.py` — LLM-free hourly curator: decay + token-overlap clustering + digest.
+- `/review-lessons` — triage affordance (promote/dismiss/skip), mirrors /review-decisions.
+- `/encode-lesson --from-candidate <id>` — promote a candidate without a formal investigation,
+  guardrails intact.
+- Five new ledger event types projected into a `lesson_candidates` table.
+- Candidates never auto-write to CLAUDE.md; only the human-gated /encode-lesson does.
+
+Spec: specs/2026-05-20-auto-lessons-continual-learning.md
+
 ### Added — v0.12.0 (renamed from attest to specship)
 
 **This is a brand change, not a behaviour change.** Everything attest did, specship does — same commands, same ledger, same workflow. The audit trail under the old name is preserved exactly. Only the names, paths, and binaries change.
