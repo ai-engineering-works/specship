@@ -6,6 +6,7 @@
 #   ./scripts/install.sh <path-to-target-repo>
 #   ./scripts/install.sh <path-to-target-repo> --skip-skill   # don't install user-scoped skill
 #   ./scripts/install.sh <path-to-target-repo> --user-commands # install commands to ~/.claude instead of project
+#   ./scripts/install.sh <path-to-target-repo> --with-cron    # install hourly curator cron for auto-lessons
 #
 # What this script does:
 #   1. Drops CLAUDE.md template at the target repo root (only if no CLAUDE.md exists)
@@ -30,6 +31,7 @@ Options:
   --user-commands     Install slash commands to ~/.claude (user-scoped)
                       instead of <target>/.claude (project-scoped)
   --skip-hook         Skip installing the pre-commit hook
+  --with-cron         Install hourly cron job for the auto-lessons curator
   --dry-run           Print what would be done; make no changes
 EOF
     exit 2
@@ -40,6 +42,7 @@ SKIP_SKILL=0
 USER_COMMANDS=0
 SKIP_HOOK=0
 DRY_RUN=0
+WITH_CRON=0
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -47,6 +50,7 @@ while [[ $# -gt 0 ]]; do
         --user-commands) USER_COMMANDS=1 ;;
         --skip-hook) SKIP_HOOK=1 ;;
         --dry-run) DRY_RUN=1 ;;
+        --with-cron) WITH_CRON=1 ;;
         *) echo "Unknown option: $1" >&2; exit 2 ;;
     esac
     shift
@@ -125,7 +129,7 @@ if [[ -d "$TARGET/.attest" ]]; then
 fi
 
 # 1. CLAUDE.md template (only if no CLAUDE.md exists)
-echo "1/9  CLAUDE.md template"
+echo "1/10  CLAUDE.md template"
 if [[ -f "$TARGET/CLAUDE.md" ]]; then
     echo "  CLAUDE.md already exists — leaving untouched."
     echo "  To convert it to the specship template, run the claude-md-architect skill in Claude Code."
@@ -136,8 +140,8 @@ fi
 echo ""
 
 # 2. Directories
-echo "2/9  Directories"
-for dir in specs fixes investigations _generated .specship .specship/ledger .specship/contract .specship/coverage .specship/dashboard .specship/plans; do
+echo "2/10  Directories"
+for dir in specs fixes investigations _generated .specship .specship/ledger .specship/contract .specship/coverage .specship/dashboard .specship/plans .specship/lessons; do
     if [[ -d "$TARGET/$dir" ]]; then
         echo "  exists: $TARGET/$dir/"
     else
@@ -155,10 +159,10 @@ echo ""
 # 3. Slash commands
 if [[ $USER_COMMANDS -eq 1 ]]; then
     CMD_DEST="$HOME/.claude/commands"
-    echo "3/9  Slash commands (user-scoped → $CMD_DEST)"
+    echo "3/10  Slash commands (user-scoped → $CMD_DEST)"
 else
     CMD_DEST="$TARGET/.claude/commands"
-    echo "3/9  Slash commands (project-scoped → $CMD_DEST)"
+    echo "3/10  Slash commands (project-scoped → $CMD_DEST)"
 fi
 run "mkdir -p '$CMD_DEST'"
 for cmd in spec contract work check fix investigate ship encode-lesson review-decisions; do
@@ -168,16 +172,16 @@ echo ""
 
 # 4. Pre-commit hook
 if [[ $SKIP_HOOK -eq 1 ]]; then
-    echo "4/9  Pre-commit hook (skipped via --skip-hook)"
+    echo "4/10  Pre-commit hook (skipped via --skip-hook)"
 else
-    echo "4/9  Pre-commit hook"
+    echo "4/10  Pre-commit hook"
     safe_copy "$DIST/hooks/pre-commit" "$TARGET/.git/hooks/pre-commit"
     run "chmod +x '$TARGET/.git/hooks/pre-commit'"
 fi
 echo ""
 
 # 5. Observability ledger
-echo "5/9  Observability ledger"
+echo "5/10  Observability ledger"
 LEDGER_DEST="$TARGET/.specship/ledger"
 run "mkdir -p '$LEDGER_DEST'"
 safe_copy "$DIST/ledger/specship_ledger.py" "$LEDGER_DEST/specship_ledger.py"
@@ -197,8 +201,38 @@ elif [[ ! -f "$TARGET/.gitignore" ]]; then
 fi
 echo ""
 
-# 6. Contract helpers (breaking-change detection)
-echo "6/9  Contract helpers"
+# 6. Auto-lessons helpers
+echo "6/10  Auto-lessons helpers"
+LESSONS_DEST="$TARGET/.specship/lessons"
+run "mkdir -p '$LESSONS_DEST'"
+for f in lessons_query.py curate.py curate.sh selftest.py HOW-IT-WORKS.md; do
+    run "cp '$DIST/lessons/$f' '$LESSONS_DEST/$f'"
+done
+run "chmod +x '$LESSONS_DEST/curate.sh'"
+
+# Auto-lessons: SessionEnd capture hook + optional hourly curator cron.
+HOOK_SNIPPET="$DIST/hooks/session-end-capture.json"
+SETTINGS_FILE="$TARGET/.claude/settings.json"
+echo ""
+echo "Auto-lessons setup:"
+echo "  To capture lessons automatically at session end, merge this into $SETTINGS_FILE:"
+echo "    $(cat "$HOOK_SNIPPET")"
+CRON_LINE="0 * * * * cd '$TARGET' && .specship/lessons/curate.sh >> .specship/lessons/curate.log 2>&1"
+if [[ "${WITH_CRON:-0}" == "1" ]]; then
+    if crontab -l 2>/dev/null | grep -qF ".specship/lessons/curate.sh"; then
+        echo "  cron: hourly curator already installed"
+    else
+        ( crontab -l 2>/dev/null; echo "$CRON_LINE" ) | crontab -
+        echo "  cron: installed hourly curator"
+    fi
+else
+    echo "  To run the curator hourly, add this crontab line (or re-run install with --with-cron):"
+    echo "    $CRON_LINE"
+fi
+echo ""
+
+# 7. Contract helpers (breaking-change detection)
+echo "7/10  Contract helpers"
 CONTRACT_DEST="$TARGET/.specship/contract"
 run "mkdir -p '$CONTRACT_DEST'"
 safe_copy "$DIST/contract/breaking-change-check.sh" "$CONTRACT_DEST/breaking-change-check.sh"
@@ -214,8 +248,8 @@ else
 fi
 echo ""
 
-# 7. Coverage helper
-echo "7/9  Coverage helper"
+# 8. Coverage helper
+echo "8/10  Coverage helper"
 COVERAGE_DEST="$TARGET/.specship/coverage"
 run "mkdir -p '$COVERAGE_DEST'"
 safe_copy "$DIST/coverage/coverage-check.py" "$COVERAGE_DEST/coverage-check.py"
@@ -230,8 +264,8 @@ else
 fi
 echo ""
 
-# 8. Dashboard
-echo "8/9  Dashboard"
+# 9. Dashboard
+echo "9/10  Dashboard"
 DASH_DEST="$TARGET/.specship/dashboard"
 run "mkdir -p '$DASH_DEST'"
 safe_copy "$DIST/dashboard/dashboard.html" "$DASH_DEST/dashboard.html"
@@ -240,11 +274,11 @@ echo "  ℹ Open via: cd .specship && python3 -m http.server 8765"
 echo "    then visit http://localhost:8765/dashboard/dashboard.html"
 echo ""
 
-# 9. Skills (user-scoped)
+# 10. Skills (user-scoped)
 if [[ $SKIP_SKILL -eq 1 ]]; then
-    echo "9/9  Skills (skipped via --skip-skill)"
+    echo "10/10  Skills (skipped via --skip-skill)"
 else
-    echo "9/9  Skills (user-scoped)"
+    echo "10/10  Skills (user-scoped)"
 
     # claude-md-architect
     SKILL_DEST="$HOME/.claude/skills/claude-md-architect"

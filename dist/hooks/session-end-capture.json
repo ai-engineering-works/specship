@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "/capture-lessons --source session-end-hook",
+            "statusMessage": "specship: capturing lesson candidates from this session..."
+          }
+        ]
+      }
+    ]
+  }
+}

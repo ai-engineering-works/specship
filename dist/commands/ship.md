@@ -285,6 +285,18 @@ When both are merged and acceptance is confirmed, the spec is ready for status
 update to signed-off (manual — /ship does not auto-promote).
 ```
 
+## Capture lessons (auto)
+
+Before closing, capture any durable lessons from this session so they are not lost. Run:
+
+> `/capture-lessons --session-id $SID --source /ship`
+
+This records at most 3 lesson candidates (corrections, confirmed approaches, preferences,
+surprising decisions) to the ledger. It is idempotent — if the SessionEnd hook also fires,
+it will not double-record. Candidates are NOT invariants; they are reviewed later via
+`/review-lessons`. If the session taught nothing durable, `/capture-lessons` records nothing,
+which is the common case. Do not block the command's completion on this step.
+
 Log `session_end` with overall outcome:
 - `completed` — both subagents completed AND /check is clean
 - `partial` — one or both subagents completed but /check found drift, OR one blocked

@@ -187,6 +187,18 @@ The compression saves minutes, not hours. It does not buy you a way to skip the 
 5. List any open questions.
 6. Do NOT execute any code or make any other file changes.
 
+## Capture lessons (auto)
+
+Before closing, capture any durable lessons from this session so they are not lost. Run:
+
+> `/capture-lessons --session-id $SID --source /fix`
+
+This records at most 3 lesson candidates (corrections, confirmed approaches, preferences,
+surprising decisions) to the ledger. It is idempotent — if the SessionEnd hook also fires,
+it will not double-record. Candidates are NOT invariants; they are reviewed later via
+`/review-lessons`. If the session taught nothing durable, `/capture-lessons` records nothing,
+which is the common case. Do not block the command's completion on this step.
+
 ## What not to do
 
 - Do not modify the original spec's content (Cases 2 and 4 create a *new* spec; the original keeps its content with only a `Superseded by` field appended).

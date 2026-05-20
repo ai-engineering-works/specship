@@ -182,6 +182,19 @@ You were invoked by `/ship` to produce a plan for a separate human-approval step
        estimated_decisions=<int>
    ```
 5. **STOP.** Do NOT execute. Return to the parent (the `/ship` orchestrator) with the plan_id and plan_path. Tell the parent: "Plan drafted at .specship/plans/<plan_id>.md. Awaiting orchestrator's approval gate."
+
+## Capture lessons (auto)
+
+Before closing, capture any durable lessons from this session so they are not lost. Run:
+
+> `/capture-lessons --session-id $SID --source /work`
+
+This records at most 3 lesson candidates (corrections, confirmed approaches, preferences,
+surprising decisions) to the ledger. It is idempotent — if the SessionEnd hook also fires,
+it will not double-record. Candidates are NOT invariants; they are reviewed later via
+`/review-lessons`. If the session taught nothing durable, `/capture-lessons` records nothing,
+which is the common case. Do not block the command's completion on this step.
+
 6. Log `session_end` with `outcome="plan-only"`.
 
 ### Mode C — direct invocation (default — human-in-the-loop)
@@ -397,6 +410,18 @@ This block is the discoverability bridge: it puts decisions in front of the user
 Note: N decisions is high. The spec was probably under-specified — consider
 tightening Acceptance criteria or Open questions before the next /work run.
 ```
+
+## Capture lessons (auto)
+
+Before closing, capture any durable lessons from this session so they are not lost. Run:
+
+> `/capture-lessons --session-id $SID --source /work`
+
+This records at most 3 lesson candidates (corrections, confirmed approaches, preferences,
+surprising decisions) to the ledger. It is idempotent — if the SessionEnd hook also fires,
+it will not double-record. Candidates are NOT invariants; they are reviewed later via
+`/review-lessons`. If the session taught nothing durable, `/capture-lessons` records nothing,
+which is the common case. Do not block the command's completion on this step.
 
 ## What not to do
 
