@@ -74,5 +74,26 @@ else
   fail "no qa-check warning (got: $WARN)"; fails=$((fails+1))
 fi
 
+# --- Case 5: breaking-change checker flags a removed endpoint, projects a row ---
+cp "$E2E_DIR/fixtures/openapi-before.json" "$T/bc-old.json"
+cp "$E2E_DIR/fixtures/openapi-after.json"  "$T/bc-new.json"
+BC="$( cd "$T" && bash .specship/contract/breaking-change-check.sh bc-old.json bc-new.json )"
+if echo "$BC" | python3 -c "import sys,json; sys.exit(0 if json.load(sys.stdin).get('breaking') else 1)"; then
+  ok "breaking-change checker flagged removed endpoint"
+else
+  fail "breaking-change not detected (got: $BC)"; fails=$((fails+1))
+fi
+# Log the event the way /contract would, then assert the projection.
+( cd "$T" && python3 "$cli" log breaking_change_detected \
+  artifact='"specs/demo.md"' tool='"fallback"' breaking='true' findings_count='1' --quiet ) >/dev/null
+python3 "$A" count "$T" breaking_changes "--where" "breaking=1" --op ge --n 1 || fails=$((fails+1))
+
+# --- Dashboard DB-vs-UI cross-check (the deterministic ledger makes this exact) ---
+if [[ "${NO_DASH:-0}" -eq 0 ]]; then
+  nev="$(python3 "$A" value "$T" events)"
+  node "$E2E_DIR/lib/dashboard_check.mjs" "$T" \
+    "h1=specship dashboard" "#data-status=${nev} events" || fails=$((fails+1))
+fi
+
 cp "$T/.specship/ledger/events.jsonl" "$RUN_BUNDLE/events.jsonl" 2>/dev/null || true
 [[ $fails -eq 0 ]]
