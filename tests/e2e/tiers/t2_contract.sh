@@ -5,6 +5,12 @@
 . "$(dirname "$0")/../lib/approve.sh"
 A="$E2E_DIR/lib/assert.py"
 
+# NOTE: claude_run calls below are intentionally unguarded. These scripts inherit
+# `set -e` (from common.sh), so a nonzero exit from a Claude step (timeout/CLI
+# error) aborts the tier before the assertions run. That is deliberate fail-fast
+# on infrastructure failure — `claude -p` normally exits 0 even on semantic issues,
+# so the structural assertions still execute in the common case.
+
 T="$(provision_repo)"
 [[ "${KEEP:-0}" -eq 1 ]] || trap 'rm -rf "$T"' EXIT
 log "target: $T"
@@ -36,7 +42,11 @@ python3 "$A" count "$T" plans "--where" "verdict='approved'" --op ge --n 2 || fa
 python3 "$A" event "$T" gate_passed --op ge --n 1 || fails=$((fails+1))
 
 if [[ "${NO_DASH:-0}" -eq 0 ]]; then
-  node "$E2E_DIR/lib/dashboard_check.mjs" "$T" "h1=specship dashboard" || fails=$((fails+1))
+  # DB-vs-UI cross-check: the dashboard's #data-status shows "<N> events · ...",
+  # where N must equal the SQLite events count (both derive from events.jsonl).
+  nev="$(python3 "$A" value "$T" events)"
+  node "$E2E_DIR/lib/dashboard_check.mjs" "$T" \
+    "h1=specship dashboard" "#data-status=${nev} events" || fails=$((fails+1))
 fi
 cp "$T/.specship/ledger/events.jsonl" "$RUN_BUNDLE/events.jsonl" 2>/dev/null || true
 [[ $fails -eq 0 ]]
