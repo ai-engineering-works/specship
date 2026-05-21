@@ -194,7 +194,7 @@ When you identify the root cause:
 2. Fill in "Affected scope".
 3. Set status to `root-cause-identified`.
 4. Set conclusion to "Root cause identified — see Root cause section. Resolving via /fix."
-5. Tell the user: *"Investigation complete. Run `/fix <ticket> --against <affected-spec> --from-investigation investigations/<file>.md` to create the fix. The fix's Root cause and Resolution sections will be pre-populated from this investigation."*
+5. **Offer to continue — Enter defaults to yes.** Ask: *"Investigation complete. Proceed to `/fix` now? [Y/n]"* (treat `y`/`yes`/empty as yes, `n`/`no` as no). On yes, execute the `/fix` slash command in this session with `--against <affected-spec from "Affected scope">` and `--from-investigation investigations/<file>.md` pre-filled so the user doesn't retype them — you will still ask them to classify the bug (Case 1/2/3/4), which `/fix` requires. (`/fix` and `/work` are both opus, same as `/investigate` — no model-split caveat.) On no, tell the user: *"Run `/fix <ticket> --against <affected-spec> --from-investigation investigations/<file>.md` when ready."* Either way the fix's Root cause and Resolution sections are pre-populated from this investigation.
 
 ## When investigation hits a wall
 
