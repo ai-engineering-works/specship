@@ -6,6 +6,26 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+### Changed — test-per-acceptance-criterion gate in `/work` and `/fix`
+
+`/work` now requires a test case for every acceptance criterion (the scenarios the
+plan identifies), not just an overall test list:
+- **Plan:** the freeform "Tests to add or update" plan section is now "Tests per
+  acceptance criterion" — each criterion maps to at least one test (`criterion →
+  test file::test name`), or carries an explicit justification if genuinely not
+  unit-testable.
+- **Execution:** for each criterion, write its test first (confirm it fails for the
+  right reason), then implement until it passes. A criterion's checkbox is not ticked
+  until its mapped test exists and passes (or a not-testable justification stands).
+- **Post-flight:** new Step 3.4 gate — every in-scope criterion must map to a passing
+  test (or a standing justification) before status advances to `ready-for-review`;
+  otherwise status stays `in-progress` and the gap is surfaced. This is distinct from
+  the Step 3.5 coverage gate (line coverage of changed lines): 3.4 verifies that each
+  criterion is *intentionally* tested, not that a coverage number was hit.
+- `/fix` inherits this through `/work` (it executes fixes), and its acceptance-criteria
+  template now states the requirement; the mandatory regression test is the test for
+  the bug-recurrence criterion.
+
 ### Added — Auto-lessons continual-learning loop
 
 Added the automatic-capture half of a learning loop, feeding the existing /encode-lesson

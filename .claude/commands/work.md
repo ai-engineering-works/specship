@@ -154,8 +154,12 @@ You were invoked by `/ship` to produce a plan for a separate human-approval step
    ## Files to create or modify
    <list with file paths>
 
-   ## Tests to add or update
-   <list>
+   ## Tests per acceptance criterion
+   <For EACH acceptance criterion above, name the test case(s) that will verify it:
+    `criterion → test file::test name`. Every criterion maps to at least one test.
+    A criterion that is genuinely not unit-testable (e.g. a docs-only or pure-config
+    change) must instead carry an explicit one-line justification — an unjustified
+    criterion with no test is a planning gap, not an acceptable plan.>
 
    ## Decisions you expect to make
    <list — give the human a heads-up about choices Claude expects to encounter,
@@ -212,7 +216,7 @@ After pre-flight passes (no orchestrator involved):
 4. Produce a plan covering:
    - Order in which you'll address THIS scope's acceptance criteria
    - Files in THIS scope you'll create or modify
-   - Tests in THIS scope you'll write or update (in fix mode, include the regression test explicitly)
+   - Tests per acceptance criterion: for EACH criterion in scope, the test case(s) that will verify it (one criterion → at least one test). A criterion that is genuinely not unit-testable must carry an explicit justification instead. In fix mode, include the regression test explicitly as the test for the bug-recurrence criterion.
    - Generated artifacts you'll import (read-only)
    - Invariants from `CLAUDE.md` that constrain the approach
    - Any warnings from the drift check that affect the plan
@@ -227,8 +231,8 @@ Reached after:
 - Mode B: never (Mode B stops before execution)
 - Mode C: human approved the plan inline
 
-1. Work through THIS scope's acceptance criteria in order.
-2. Tick checkboxes as criteria complete (scope-prefixed for clarity).
+1. Work through THIS scope's acceptance criteria in order. For each criterion, write its test case first — per the plan's "Tests per acceptance criterion" mapping — confirm it fails for the right reason, then implement until it passes. This is intent-driven testing: the test encodes what the criterion promises. (It is NOT the coverage-number-chasing that Step 3.5 warns against — these tests exist because a criterion demands them.)
+2. Tick a criterion's checkbox (scope-prefixed for clarity) only once its mapped test exists and passes. For a criterion the plan marked not-testable, tick it only when its change is complete and the justification still holds. Never tick a criterion that has neither a passing test nor a standing justification.
 3. **Import generated types and schemas — do not redefine them.** Re-declaring is how drift starts.
 4. **Do not write code in the other scope.** If you find yourself outside scope, stop.
 5. Add traceability comments per `CLAUDE.md` convention:
@@ -285,6 +289,15 @@ Invoke `/check` with the working scope. This catches:
 - Code-implies-spec divergence (cheap version, only files we touched)
 
 If anything flags, surface it before marking ready-for-review.
+
+### Step 3.4: Every acceptance criterion is backed by a test
+
+The test-per-scenario gate. Confirm that each acceptance criterion in THIS scope maps to a test case that exists and passed in Step 1's run (or, for a criterion the plan marked not-testable, that its justification still holds). The plan promised a test for each criterion in "Tests per acceptance criterion"; this step verifies the promise was kept.
+
+If any criterion has neither a corresponding passing test nor a standing not-testable justification:
+- Do NOT advance status in Step 4. Status stays `in-progress`.
+- Surface the gap: list each uncovered criterion and the test that should verify it.
+- Write that test (intent-driven, asserting what the criterion promised) and re-run, or — if the criterion truly cannot be tested — record the justification in the execution notes. Unlike the coverage gate below, this gate is satisfied by exactly the right kind of test: one that verifies a criterion, not one written to lift a number.
 
 ### Step 3.5: Coverage measurement (if CLAUDE.md declares a Coverage policy)
 
