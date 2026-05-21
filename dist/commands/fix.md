@@ -107,7 +107,10 @@ should read. Pasted draft of the corrected Contract surface section, if applicab
 
 ## Acceptance criteria
 
-<Mechanically verifiable.>
+<Mechanically verifiable. Each criterion must be backed by a test case during
+`/work`: `/work` will not mark this fix `ready-for-review` until every criterion
+maps to a passing test (or carries a recorded not-testable justification). The
+regression test below is the test for the bug-recurrence criterion.>
 
 - [ ] <criterion 1>
 - [ ] <criterion 2>

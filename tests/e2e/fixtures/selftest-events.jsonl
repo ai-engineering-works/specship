@@ -1,0 +1,4 @@
+{"event_type":"session_start","ts":"2026-05-21T00:00:00Z","session_id":"s1","command":"spec"}
+{"event_type":"session_end","ts":"2026-05-21T00:01:00Z","session_id":"s1","command":"spec","outcome":"success"}
+{"event_type":"gate_passed","ts":"2026-05-21T00:02:00Z","source":"pre-commit"}
+{"event_type":"gate_blocked","ts":"2026-05-21T00:03:00Z","source":"pre-commit","reason":"no-linkage"}

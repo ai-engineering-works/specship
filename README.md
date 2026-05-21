@@ -6,7 +6,7 @@ A standalone workflow for AI-assisted development with [Claude Code](https://doc
 
 The name reflects what the workflow does: it carries a *spec* all the way to *ship*. Every artifact is a checkpoint along that path. The spec captures intent. The contract locks the API boundary. The fix captures a bug and its resolution. A `§ref` comment traces code back to the spec. The pre-commit hook verifies nothing slips through without that paper trail. The hash mechanism verifies contracts haven't drifted. Spec to ship, end to end.
 
-The whole system: one constitution per repo, nine slash commands, two skills, one pre-commit hook, an observability ledger, and a structural breaking-change detector.
+The whole system: one constitution per repo, thirteen slash commands, two skills, one pre-commit hook, an observability ledger, a QA artifact subsystem, and a structural breaking-change detector.
 
 ## Quick start
 
@@ -92,12 +92,15 @@ specship/
 ├── .gitignore
 │
 ├── dist/                         ← source of truth — install into other repos
-│   ├── commands/                 ←   the eight slash commands
+│   ├── commands/                 ←   the thirteen slash commands
 │   ├── contract/                 ←   breaking-change detection helpers
+│   ├── coverage/                 ←   delta-coverage measurement helper
+│   ├── qa-generators/            ←   QA artifact → runnable test generators
+│   ├── lessons/                  ←   auto-lessons capture + curator
 │   ├── hooks/                    ←   pre-commit hook
 │   ├── ledger/                   ←   observability ledger (Python + SQLite)
 │   ├── skill/                    ←   two skills
-│   └── templates/                ←   CLAUDE.md template
+│   └── templates/                ←   CLAUDE.md + QA artifact templates
 │
 ├── .claude/                      ← generated copy for self-hosting (sync'd from dist/)
 │   ├── commands/
@@ -144,7 +147,7 @@ Failures take several shapes. The workflow handles each differently:
 
 In a regulated environment, the investigation record is often more important than the fix itself: it shows you investigated rather than guessed.
 
-## The nine commands
+## The thirteen commands
 
 | Command | When to use |
 |---|---|
@@ -153,12 +156,14 @@ In a regulated environment, the investigation record is often more important tha
 | `/work <spec-or-fix> [--scope]` | Execute against a spec or fix file (single scope) |
 | `/ship <spec>` | Orchestrate a full-stack spec end-to-end: `/contract` then parallel backend + frontend `/work` via subagents, then `/check`. Saves the user from running four sessions manually. |
 | `/check <spec-or-fix> [--deep]` | Detect drift between a spec/fix and the code |
+| `/qa <intent> [--from-fix <fix>] [--regression-only\|--scenarios-only\|--properties-only] [--no-e2e]` | Author QA artifacts (regression / scenario / property) for a spec, fix, or investigation, then generate runnable tests under `tests/`. Frontend-touching scenarios and regressions can emit a Playwright e2e test. |
 | `/investigate <ticket>` | Investigate a failure (compile error, runtime error, broken CI, production incident) — produces an investigation file with evidence and root cause |
 | `/fix <ticket> --against <spec> [--from-investigation <inv>]` | Bug fix against an existing spec — four-case classification, can chain from `/investigate` |
 | `/encode-lesson <investigation> [--fix <fix>] [--from-candidate <id>]` | Promote a lesson learned from a resolved investigation (or a reviewed candidate) into a durable invariant in CLAUDE.md (or nested CLAUDE.md, skill gotchas, or command prompt). Closes the learning loop. |
 | `/review-decisions [<spec>] [--since DATE]` | Surface decisions Claude logged during `/work` for human review. Mark each as accepted, rejected, or needs-redo. Closes the human-in-loop gap. |
 | `/capture-lessons` | Record up to 3 lesson candidates from the current session — corrections, confirmed approaches, preferences, surprising decisions. Runs automatically at session end; also callable manually. |
 | `/review-lessons [--since DATE]` | Triage pending lesson candidates: promote to `/encode-lesson`, dismiss, or skip. Surfaces clustered consolidation suggestions from the curator. |
+| `/show [specs\|fixes\|investigations\|qa\|all\|recent\|<query>] [--status <s>]` | Read-only discovery: list and search artifacts by title, ticket ID, kind, or status without leaving the chat. |
 
 `/work` accepts either spec or fix files. `/check` is invoked automatically by `/work` and can also be run manually. `/investigate` feeds into `/fix` via the `--from-investigation` flag. `/ship` only handles full-stack specs; for single-scope work, run `/work` directly. `/encode-lesson` requires the investigation to have status `closed-resolved`. `/review-decisions` reads from the ledger — it requires `/work` (or another command) to have logged decisions first.
 
@@ -273,6 +278,26 @@ deliberate `/encode-lesson` promotion path:
 
 Candidates never auto-write to CLAUDE.md; only the human-gated `/encode-lesson` does. The
 candidate buffer lives in the observability ledger and self-cleans via decay.
+
+## QA artifacts
+
+Unit tests written during `/work` verify "did Claude exercise the code I wrote." They don't verify "does the system honor the business intent" — and they're tied to one implementation, so a refactor can silently delete the assertion. QA artifacts are correctness specifications that live alongside specs/fixes/investigations and outlive any one implementation.
+
+`/qa` authors three kinds, each tracing back to a parent spec or fix:
+
+- **Regression** — a frozen input/output pair captured when a bug is fixed; append-only, traces to a `parent_fix`. Its job: that specific bug never returns.
+- **Scenario** — a given/when/then path the spec promised, traces to a `parent_spec`. Mutable when the spec changes, not to paper over failures.
+- **Property** — an invariant plus an input-space declaration; the generator produces many inputs (hypothesis for Python, fast-check for TypeScript) and shrinks failures to a minimal counterexample. Stateless only in v1.
+
+The artifacts are markdown (machine-readable frontmatter + human review body) under `regressions/`, `scenarios/<spec-slug>/`, and `properties/<spec-slug>/`. `/qa` interviews the author, then the generators under `dist/qa-generators/` emit runnable tests into `tests/regression/`, `tests/scenario/`, and `tests/property/` — targeting pytest or Jest. Each generated file carries an `# AUTO-GENERATED` header, a `§qa:` linkback, and a content hash.
+
+Frontend-touching scenarios and regressions can add a `ui_action:` block to also emit a Playwright e2e test under `tests/e2e/` (semantic locators, video recording). Backend-only artifacts omit it. Property artifacts don't support `ui_action` — running 100+ generated inputs through a browser is prohibitively slow.
+
+An advisory pre-commit check (`.specship/hooks/qa-check.py`, installed alongside the hook) warns — but never blocks — when an already-approved regression artifact's `Input`/`Expected output` is edited, or when a generated test drifts from its source artifact (one changed without the other in the same commit).
+
+`/show qa` lists QA artifacts by status. See `dist/templates/HOW-TO-AUTHOR-QA.md` for the full authoring guide.
+
+> **Status:** the QA subsystem is partially landed — the `/qa` and `/show` prompts, generators, templates, ledger schema, and the advisory pre-commit checks are in place. Still pending: the `/spec` `Invariants` section and the `/ship` QA gate that `HOW-TO-AUTHOR-QA.md` describes.
 
 ## Contract integrity (hash + structural diff)
 
