@@ -6,6 +6,8 @@
 # Satisfies the `/work --from-plan` safety check, which refuses to execute a
 # plan lacking a matching plan_approved event.
 approve_latest_plan() {
+  # Contract: status/progress lines go to stderr (via log()); ONLY the plan_id
+  # is written to stdout, so callers can capture it with $(approve_latest_plan ...).
   local target="$1" cli; cli="$(ledger_cli "$target")"
   ( cd "$target" && python3 "$cli" rebuild-index ) >/dev/null 2>&1 || true
   local plan_id

@@ -42,8 +42,20 @@ def db(target: str) -> sqlite3.Connection:
     return sqlite3.connect(Path(target) / ".specship" / "ledger" / "index.db")
 
 
+def do_value(target: str, table: str, where: str) -> int:
+    """Print COUNT(*) for a table to stdout (for DB-vs-dashboard cross-checks)."""
+    rebuild(target)
+    sql = f"SELECT COUNT(*) FROM {table}"  # trusted, harness-controlled inputs only
+    if where:
+        sql += f" WHERE {where}"
+    with db(target) as conn:
+        print(conn.execute(sql).fetchone()[0])
+    return 0
+
+
 def do_count(target: str, table: str, where: str, op: str, n: int) -> int:
     rebuild(target)
+    # SQL identifiers/where are interpolated; harness-controlled (trusted) inputs only.
     sql = f"SELECT COUNT(*) FROM {table}"
     if where:
         sql += f" WHERE {where}"
@@ -67,6 +79,9 @@ def main() -> int:
     e.add_argument("target"); e.add_argument("event_type")
     e.add_argument("--op", default="ge", choices=OPS); e.add_argument("--n", type=int, default=1)
     r = sub.add_parser("rebuild"); r.add_argument("target")
+    v = sub.add_parser("value")
+    v.add_argument("target"); v.add_argument("table")
+    v.add_argument("--where", default="")
     a = p.parse_args()
 
     if a.cmd == "rebuild":
@@ -76,6 +91,8 @@ def main() -> int:
     if a.cmd == "event":
         where = f"event_type = '{a.event_type}'"
         return do_count(a.target, "events", where, a.op, a.n)
+    if a.cmd == "value":
+        return do_value(a.target, a.table, a.where)
     return 2
 
 
