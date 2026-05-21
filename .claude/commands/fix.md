@@ -184,11 +184,11 @@ The compression saves minutes, not hours. It does not buy you a way to skip the 
 1. Save the fix file.
 2. If Case 2 or 4, save the new spec file with `Supersedes` metadata, and update the original's metadata with `Superseded by`.
 3. Show the user the path(s) created and a one-line summary of the case and resolution plan.
-4. State the next command:
-   - Case 1: `/work fixes/<file>.md`
-   - Case 2 or 4: edit `specs/<new>.md` → `/contract specs/<new>.md` → `/work fixes/<file>.md`
+4. **Offer to continue — Enter defaults to yes.** If no open questions block `/work`, ask the user whether to proceed now instead of making them retype a command (treat `y`/`yes`/empty as yes, `n`/`no` as no):
+   - **Case 1:** ask *"Proceed to `/work fixes/<file>.md` now? [Y/n]"* On yes, execute the `/work` slash command against the fix file in this session (`/work` is opus, same as `/fix` — no model-split caveat). On no: *"Run `/work fixes/<file>.md` when ready."*
+   - **Case 2 or 4:** the new spec needs a human edit and `/contract` before `/work`, so do NOT auto-chain to `/work`. Ask *"Proceed to `/contract specs/<new>.md` now? [Y/n] — only after you've confirmed the new spec's Contract surface; press n if it still needs edits."* On yes, execute the `/contract` slash command against the new spec in this session, then offer `/work fixes/<file>.md`. On no, state the manual sequence: *"edit `specs/<new>.md` → `/contract specs/<new>.md` → `/work fixes/<file>.md`."*
 5. List any open questions.
-6. Do NOT execute any code or make any other file changes.
+6. Do NOT execute any code or make any other file changes until the user confirms a continuation above.
 
 ## Capture lessons (auto)
 

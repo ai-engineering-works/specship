@@ -6,6 +6,21 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+### Changed — inline y/n handoff between commands (no command-pasting)
+
+`/spec`, `/fix`, and `/investigate` now offer to continue to the next step with a
+single confirmation (Enter = yes) instead of printing a command for the user to
+copy-paste:
+- `/spec` → `/work` (single-scope) or `/contract` (full-stack). The `/work` offer
+  notes the sonnet→opus model split so the user can decline and run it in a fresh
+  session.
+- `/fix` → `/work` (Case 1). Case 2/4 offer `/contract` on the new spec first, since
+  it needs a human edit before `/work`.
+- `/investigate` → `/fix`, pre-filling `--against` and `--from-investigation` so the
+  user only classifies the bug Case rather than retyping the whole command.
+On yes the next slash command is executed in the same session; on no the explicit
+command is shown as before. `/ship` already used a y/n-style approval and is unchanged.
+
 ### Changed — test-per-acceptance-criterion gate in `/work` and `/fix`
 
 `/work` now requires a test case for every acceptance criterion (the scenarios the

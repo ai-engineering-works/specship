@@ -185,10 +185,11 @@ For `backend-only` or `frontend-only` scopes, omit the per-side grouping in Acce
 1. Save the file.
 2. Show the user the path, the scope, and a one-line summary.
 3. **If the spec has a Contract surface section, scan it for placeholders** (`[fill in]`, `TODO`, `<...>` markers) and call them out. Tell the user: *"Contract surface has N unresolved placeholders. Fill them in before running `/contract`."*
-4. If scope is `full-stack`, remind the user: *"Next step is `/contract` to generate the API artifacts, then `/work --scope backend` and `/work --scope frontend` (in parallel sessions or sequentially)."*
-5. If scope is `backend-only` or `frontend-only`, remind the user: *"Next step is `/work` on this spec."*
-6. List any open questions you flagged — these block `/contract` and `/work`.
-7. Do NOT execute any code or make any other changes.
+4. List any open questions you flagged — these block `/contract` and `/work`. If any remain unresolved (or the Contract surface still has placeholders), do NOT offer to continue below; tell the user to resolve them first.
+5. **Offer to continue — Enter defaults to yes.** When nothing blocks the next step, ask the user whether to proceed now instead of making them retype a command. Treat `y`/`yes`/empty input as yes and `n`/`no` as no:
+   - **`backend-only` / `frontend-only`:** ask *"Proceed to `/work` on this spec now? [Y/n] (`/work` is recommended on opus — press n to run it in a fresh session if you want the model split.)"* On yes, execute the `/work` slash command against this spec path in this session. On no, tell the user: *"Run `/work <spec-path>` when ready."*
+   - **`full-stack`:** ask *"Proceed to `/contract` on this spec now? [Y/n]"* (same recommended model — no model-split caveat). On yes, execute the `/contract` slash command against this spec path in this session; its own closing step offers the `/ship` (orchestrated) or `/work` continuation. On no, tell the user: *"Next: `/contract <spec-path>`, then `/ship <spec-path>` (orchestrated) or `/work --scope backend` + `/work --scope frontend`."*
+6. Do NOT execute any code or make any other changes until the user confirms a continuation above.
 
 ## What not to do
 
