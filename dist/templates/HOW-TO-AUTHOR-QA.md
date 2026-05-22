@@ -122,7 +122,7 @@ scenarios verify that paths-the-spec-promised actually work.
 - **One scenario per file**. A spec typically has 5-15 scenarios (happy path,
   validation failures, auth failures, idempotency, edge cases). Each goes in
   its own file. This makes review burden manageable, retirement clean, and
-  the dashboard's scenario count meaningful.
+  the per-spec scenario count meaningful.
 - **Grouped by source spec**. Scenarios live under
   `scenarios/<spec-date-slug>/<scenario-slug>.md`. Browsing the directory
   for a spec shows its full test plan at a glance.

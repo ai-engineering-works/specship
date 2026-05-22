@@ -6,6 +6,21 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+### Removed — bundled single-file dashboard
+
+The bundled dashboard (`dist/dashboard/dashboard.html`, `open-dashboard.sh`, README)
+has been removed. Dashboards now live in the standalone **specship-dashboard** repo,
+which reads `.specship/ledger/events.jsonl` across repos and renders richer,
+multi-repo analytics. Consequences:
+- `install.sh` no longer creates `.specship/dashboard/` or installs the dashboard
+  (install steps renumbered 1/9–9/9).
+- `sync-local.sh` / `verify-sync.sh` no longer sync or check the dashboard.
+- The e2e harness (`tests/e2e/`) dropped its dashboard render checks (the Playwright
+  `dashboard_check.mjs`, the `test_dashboard.sh` self-test, the per-tier `#data-status`
+  cross-checks, and the `--no-dashboard` flag).
+- Passing mentions of "the dashboard" in `/qa`, `/show`, and the QA authoring guide
+  were reworded to reference the ledger.
+
 ### Changed — inline y/n handoff between commands (no command-pasting)
 
 `/spec`, `/fix`, and `/investigate` now offer to continue to the next step with a

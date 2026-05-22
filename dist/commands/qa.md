@@ -374,7 +374,7 @@ Always prefer the semantic locators. Tests using `getByLabel('Email')` survive U
 3. The integration generator writes a test file to `tests/scenario/`.
 4. **If the scenario has a `ui_action:` block** (set in Part 3.5), ALSO run `.specship/qa-generators/scenario-playwright.py` to generate a Playwright e2e test under `tests/e2e/`. The generated test includes `test.use({ video: 'on' })` so every run records video.
 5. Each generated file carries the auto-generated header and §qa back-link.
-6. Log `qa_tests_generated` per file — separate events for the integration and Playwright tests (so they show as two outputs in the dashboard).
+6. Log `qa_tests_generated` per file — separate events for the integration and Playwright tests (so they record as two outputs in the ledger).
 7. Tell the user: "Generated `tests/scenario/test_<...>.py` (integration) and, if applicable, `tests/e2e/<...>.spec.ts` (Playwright). The setup and call site are stubbed — wire them up to your test infrastructure, remove the `pytest.skip()` / `test.skip()` lines, and run."
 
 If the generator fails on a specific scenario, surface the error and skip that one. Don't fail the whole batch.
@@ -426,7 +426,7 @@ If you intend to /ship this intent without QA artifacts, you'll need a waiver:
       reason='"<why-the-waiver-is-justified>"' \
       target_resolution_date='"<YYYY-MM-DD-by-when-QA-will-be-added>"'
 
-Waivers are spec-scoped, audit-logged, and surface on the dashboard until
+Waivers are spec-scoped, audit-logged, and recorded in the ledger until
 the QA artifacts are added.
 ```
 

@@ -1,27 +1,22 @@
 #!/usr/bin/env bash
 # run.sh — specship live e2e harness entry point.
-#   ./run.sh [--tier t1,t3] [--model opus] [--keep] [--no-dashboard]
+#   ./run.sh [--tier t1,t3] [--model opus] [--keep]
 . "$(dirname "$0")/lib/common.sh"
 
-TIERS="t1,t2,t3,t4"; KEEP=0; NO_DASH=0
+TIERS="t1,t2,t3,t4"; KEEP=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --tier) TIERS="$2"; shift 2;;
     --model) export SPECSHIP_E2E_MODEL="$2"; shift 2;;
     --keep) KEEP=1; shift;;
-    --no-dashboard) NO_DASH=1; shift;;
     *) echo "unknown arg: $1" >&2; exit 2;;
   esac
 done
-export NO_DASH KEEP
+export KEEP
 
 hdr "Prerequisites"
 command -v claude  >/dev/null 2>&1 || { fail "claude CLI not on PATH (required)"; exit 1; }
 command -v python3 >/dev/null 2>&1 || { fail "python3 not on PATH (required)"; exit 1; }
-if [[ $NO_DASH -eq 0 ]] && ! (cd "$E2E_DIR" && npx --no-install playwright --version) >/dev/null 2>&1; then
-  log "Playwright not installed; dashboard checks will be skipped. (npm i in tests/e2e to enable)"
-  export NO_DASH=1
-fi
 ok "prerequisites satisfied"
 
 declare -i passed=0 failed=0

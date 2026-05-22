@@ -41,12 +41,5 @@ python3 "$A" count "$T" coverage --op ge --n 1 || fails=$((fails+1))
 python3 "$A" count "$T" plans "--where" "verdict='approved'" --op ge --n 2 || fails=$((fails+1))
 python3 "$A" event "$T" gate_passed --op ge --n 1 || fails=$((fails+1))
 
-if [[ "${NO_DASH:-0}" -eq 0 ]]; then
-  # DB-vs-UI cross-check: the dashboard's #data-status shows "<N> events · ...",
-  # where N must equal the SQLite events count (both derive from events.jsonl).
-  nev="$(python3 "$A" value "$T" events)"
-  node "$E2E_DIR/lib/dashboard_check.mjs" "$T" \
-    "h1=specship dashboard" "#data-status=${nev} events" || fails=$((fails+1))
-fi
 cp "$T/.specship/ledger/events.jsonl" "$RUN_BUNDLE/events.jsonl" 2>/dev/null || true
 [[ $fails -eq 0 ]]
