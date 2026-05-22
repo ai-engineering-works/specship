@@ -193,6 +193,11 @@ safe_copy "$DIST/ledger/specship_ledger.py" "$LEDGER_DEST/specship_ledger.py"
 safe_copy "$DIST/ledger/ledger.sh" "$LEDGER_DEST/ledger.sh"
 safe_copy "$DIST/ledger/HOW-TO-LOG.md" "$LEDGER_DEST/HOW-TO-LOG.md"
 run "chmod +x '$LEDGER_DEST/specship_ledger.py' '$LEDGER_DEST/ledger.sh'"
+# Stamp the installed specship version (read by specship-dashboard and by the
+# ledger to tag session_start events).
+if [[ -f "$REPO_ROOT/VERSION" ]]; then
+    safe_copy "$REPO_ROOT/VERSION" "$TARGET/.specship/VERSION"
+fi
 # Add SQLite index AND plans directory to gitignore. The JSONL log IS committed;
 # the SQLite index is rebuildable. Plans (.specship/plans/*.md) are transient
 # artifacts of /work --plan-only — regenerated on each /ship invocation, and

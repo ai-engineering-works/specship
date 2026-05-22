@@ -76,6 +76,7 @@ Advisory, not enforced. Claude Code uses whatever model the user has selected. T
 
 ## Where things live
 
+- `VERSION` — canonical specship version (source of truth). Bump on release; `install.sh` stamps it into each target repo as `.specship/VERSION` and the ledger tags `session_start` with `specship_version`.
 - `dist/` — installable artifacts (source of truth)
 - `dist/commands/` — thirteen slash command prompts (spec, contract, work, check, fix, investigate, ship, encode-lesson, review-decisions, qa, show, capture-lessons, review-lessons)
 - `dist/contract/` — breaking-change detection helpers (bash + Python fallback)

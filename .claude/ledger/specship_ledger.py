@@ -65,6 +65,20 @@ def db_path() -> Path:
     return ledger_dir() / "index.db"
 
 
+def specship_version() -> str | None:
+    """The installed specship version, if recorded. Installed repos carry it at
+    .specship/VERSION (stamped by install.sh); the self-hosted repo at ./VERSION."""
+    for cand in (repo_root() / ".specship" / "VERSION", repo_root() / "VERSION"):
+        try:
+            if cand.is_file():
+                v = cand.read_text(encoding="utf-8").strip()
+                if v:
+                    return v
+        except OSError:
+            pass
+    return None
+
+
 # ---- Event schema -----------------------------------------------------------
 
 # Valid event types. Adding a new one: extend this set AND update the indexer.
@@ -116,6 +130,12 @@ def append_event(event_type: str, **fields: Any) -> dict[str, Any]:
 
     Caller supplies the rest via **fields.
     """
+    # Stamp the specship version onto session_start so the dashboard can show
+    # which version each session ran under (version history over time).
+    if event_type == "session_start" and "specship_version" not in fields:
+        v = specship_version()
+        if v:
+            fields = {**fields, "specship_version": v}
     event = {
         "ts": now_iso(),
         "event_id": str(uuid.uuid4()),

@@ -6,6 +6,16 @@ The format is loosely based on [Keep a Changelog](https://keepachangelog.com/en/
 
 ## [Unreleased]
 
+## [0.14.0] — 2026-05-22
+
+### Added — specship version stamping
+
+specship now declares a version: the `VERSION` file at the repo root (currently
+`0.14.0`) is the source of truth. `install.sh` stamps it into each target repo as
+`.specship/VERSION`, and the ledger tags every `session_start` event with
+`specship_version`, so tooling — notably the standalone **specship-dashboard** — can
+show which specship version each repo and session ran under.
+
 ### Removed — bundled single-file dashboard
 
 The bundled dashboard (`dist/dashboard/dashboard.html`, `open-dashboard.sh`, README)
