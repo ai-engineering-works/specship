@@ -137,7 +137,7 @@ If `query` was set, mention what was matched: `(searched: title, ticket_id, path
 5. **Suggest next actions**. End with one line:
 
 ```
-To view a file: paste the path. To open in dashboard: /qa, /work, /ship use the path directly.
+To view a file: paste the path. To act on it: /qa, /work, /ship take the path directly.
 For body-text search across all artifacts: grep -ril '<pattern>' specs/ fixes/ investigations/
 ```
 

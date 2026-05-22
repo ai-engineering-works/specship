@@ -80,7 +80,6 @@ Advisory, not enforced. Claude Code uses whatever model the user has selected. T
 - `dist/commands/` — thirteen slash command prompts (spec, contract, work, check, fix, investigate, ship, encode-lesson, review-decisions, qa, show, capture-lessons, review-lessons)
 - `dist/contract/` — breaking-change detection helpers (bash + Python fallback)
 - `dist/coverage/` — coverage measurement helper (delta coverage + lcov/JSON parsers)
-- `dist/dashboard/` — single-file static HTML dashboard
 - `dist/ledger/` — observability ledger (specship_ledger.py, ledger.sh, HOW-TO-LOG.md)
 - `dist/lessons/` — auto-lessons loop: `lessons_query.py` (projection helpers),
   `curate.py` + `curate.sh` (LLM-free hourly curator), `selftest.py`, `HOW-IT-WORKS.md`

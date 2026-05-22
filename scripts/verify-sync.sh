@@ -55,12 +55,6 @@ check "$DIST/contract/breaking-change-fallback.py" "$LOCAL/contract/breaking-cha
 check "$DIST/coverage/coverage-check.py" "$LOCAL/coverage/coverage-check.py" \
       "coverage: coverage-check.py"
 
-# Dashboard
-check "$DIST/dashboard/dashboard.html" "$LOCAL/dashboard/dashboard.html" \
-      "dashboard: dashboard.html"
-check "$DIST/dashboard/README.md" "$LOCAL/dashboard/README.md" \
-      "dashboard: README.md"
-
 # Lessons helpers
 check "$DIST/lessons/lessons_query.py" "$LOCAL/lessons/lessons_query.py" \
       "lessons: lessons_query.py"

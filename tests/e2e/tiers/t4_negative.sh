@@ -88,12 +88,5 @@ fi
   artifact='"specs/demo.md"' tool='"fallback"' breaking='true' findings_count='1' --quiet ) >/dev/null
 python3 "$A" count "$T" breaking_changes "--where" "breaking=1" --op ge --n 1 || fails=$((fails+1))
 
-# --- Dashboard DB-vs-UI cross-check (the deterministic ledger makes this exact) ---
-if [[ "${NO_DASH:-0}" -eq 0 ]]; then
-  nev="$(python3 "$A" value "$T" events)"
-  node "$E2E_DIR/lib/dashboard_check.mjs" "$T" \
-    "h1=specship dashboard" "#data-status=${nev} events" || fails=$((fails+1))
-fi
-
 cp "$T/.specship/ledger/events.jsonl" "$RUN_BUNDLE/events.jsonl" 2>/dev/null || true
 [[ $fails -eq 0 ]]

@@ -10,5 +10,4 @@ check "pre-commit hook installed"   "[[ -x '$T/.git/hooks/pre-commit' ]]"
 check "qa-check helper installed"   "[[ -f '$T/.specship/hooks/qa-check.py' ]]"
 check "CLAUDE.md full-stack"        "grep -q 'Project type:.*full-stack' '$T/CLAUDE.md'"
 check "commands installed"          "[[ -f '$T/.claude/commands/spec.md' ]]"
-check "dashboard installed"         "[[ -f '$T/.specship/dashboard/dashboard.html' ]]"
 [[ $fails -eq 0 ]]

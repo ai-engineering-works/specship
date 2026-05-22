@@ -28,7 +28,7 @@ fi
 echo "Syncing $DIST → $LOCAL"
 
 # Wipe and regenerate .claude/commands and .claude/skills
-rm -rf "$LOCAL/commands" "$LOCAL/skills" "$LOCAL/ledger" "$LOCAL/contract" "$LOCAL/coverage" "$LOCAL/dashboard"
+rm -rf "$LOCAL/commands" "$LOCAL/skills" "$LOCAL/ledger" "$LOCAL/contract" "$LOCAL/coverage"
 mkdir -p "$LOCAL/commands"
 mkdir -p "$LOCAL/skills/claude-md-architect/references"
 mkdir -p "$LOCAL/skills/spec-reverse-engineer/references"
@@ -57,11 +57,6 @@ chmod +x "$LOCAL/contract/breaking-change-check.sh" "$LOCAL/contract/breaking-ch
 mkdir -p "$LOCAL/coverage"
 cp "$DIST/coverage/coverage-check.py" "$LOCAL/coverage/coverage-check.py"
 chmod +x "$LOCAL/coverage/coverage-check.py"
-
-# Dashboard
-mkdir -p "$LOCAL/dashboard"
-cp "$DIST/dashboard/dashboard.html" "$LOCAL/dashboard/dashboard.html"
-cp "$DIST/dashboard/README.md" "$LOCAL/dashboard/README.md"
 
 # Lessons helpers — curate pipeline and query library
 mkdir -p "$LOCAL/lessons"

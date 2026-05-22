@@ -129,7 +129,7 @@ if [[ -d "$TARGET/.attest" ]]; then
 fi
 
 # 1. CLAUDE.md template (only if no CLAUDE.md exists)
-echo "1/10  CLAUDE.md template"
+echo "1/9  CLAUDE.md template"
 if [[ -f "$TARGET/CLAUDE.md" ]]; then
     echo "  CLAUDE.md already exists — leaving untouched."
     echo "  To convert it to the specship template, run the claude-md-architect skill in Claude Code."
@@ -140,8 +140,8 @@ fi
 echo ""
 
 # 2. Directories
-echo "2/10  Directories"
-for dir in specs fixes investigations _generated .specship .specship/ledger .specship/contract .specship/coverage .specship/dashboard .specship/plans .specship/lessons .specship/hooks; do
+echo "2/9  Directories"
+for dir in specs fixes investigations _generated .specship .specship/ledger .specship/contract .specship/coverage .specship/plans .specship/lessons .specship/hooks; do
     if [[ -d "$TARGET/$dir" ]]; then
         echo "  exists: $TARGET/$dir/"
     else
@@ -159,10 +159,10 @@ echo ""
 # 3. Slash commands
 if [[ $USER_COMMANDS -eq 1 ]]; then
     CMD_DEST="$HOME/.claude/commands"
-    echo "3/10  Slash commands (user-scoped → $CMD_DEST)"
+    echo "3/9  Slash commands (user-scoped → $CMD_DEST)"
 else
     CMD_DEST="$TARGET/.claude/commands"
-    echo "3/10  Slash commands (project-scoped → $CMD_DEST)"
+    echo "3/9  Slash commands (project-scoped → $CMD_DEST)"
 fi
 run "mkdir -p '$CMD_DEST'"
 for cmd_file in "$DIST/commands/"*.md; do
@@ -174,9 +174,9 @@ echo ""
 
 # 4. Pre-commit hook
 if [[ $SKIP_HOOK -eq 1 ]]; then
-    echo "4/10  Pre-commit hook (skipped via --skip-hook)"
+    echo "4/9  Pre-commit hook (skipped via --skip-hook)"
 else
-    echo "4/10  Pre-commit hook"
+    echo "4/9  Pre-commit hook"
     safe_copy "$DIST/hooks/pre-commit" "$TARGET/.git/hooks/pre-commit"
     run "chmod +x '$TARGET/.git/hooks/pre-commit'"
     # Advisory QA helper invoked best-effort by the hook (never blocks).
@@ -186,7 +186,7 @@ fi
 echo ""
 
 # 5. Observability ledger
-echo "5/10  Observability ledger"
+echo "5/9  Observability ledger"
 LEDGER_DEST="$TARGET/.specship/ledger"
 run "mkdir -p '$LEDGER_DEST'"
 safe_copy "$DIST/ledger/specship_ledger.py" "$LEDGER_DEST/specship_ledger.py"
@@ -207,7 +207,7 @@ fi
 echo ""
 
 # 6. Auto-lessons helpers
-echo "6/10  Auto-lessons helpers"
+echo "6/9  Auto-lessons helpers"
 LESSONS_DEST="$TARGET/.specship/lessons"
 run "mkdir -p '$LESSONS_DEST'"
 for f in lessons_query.py curate.py curate.sh selftest.py HOW-IT-WORKS.md; do
@@ -237,7 +237,7 @@ fi
 echo ""
 
 # 7. Contract helpers (breaking-change detection)
-echo "7/10  Contract helpers"
+echo "7/9  Contract helpers"
 CONTRACT_DEST="$TARGET/.specship/contract"
 run "mkdir -p '$CONTRACT_DEST'"
 safe_copy "$DIST/contract/breaking-change-check.sh" "$CONTRACT_DEST/breaking-change-check.sh"
@@ -254,7 +254,7 @@ fi
 echo ""
 
 # 8. Coverage helper
-echo "8/10  Coverage helper"
+echo "8/9  Coverage helper"
 COVERAGE_DEST="$TARGET/.specship/coverage"
 run "mkdir -p '$COVERAGE_DEST'"
 safe_copy "$DIST/coverage/coverage-check.py" "$COVERAGE_DEST/coverage-check.py"
@@ -269,21 +269,11 @@ else
 fi
 echo ""
 
-# 9. Dashboard
-echo "9/10  Dashboard"
-DASH_DEST="$TARGET/.specship/dashboard"
-run "mkdir -p '$DASH_DEST'"
-safe_copy "$DIST/dashboard/dashboard.html" "$DASH_DEST/dashboard.html"
-safe_copy "$DIST/dashboard/README.md" "$DASH_DEST/README.md"
-echo "  ℹ Open via: cd .specship && python3 -m http.server 8765"
-echo "    then visit http://localhost:8765/dashboard/dashboard.html"
-echo ""
-
-# 10. Skills (user-scoped)
+# 9. Skills (user-scoped)
 if [[ $SKIP_SKILL -eq 1 ]]; then
-    echo "10/10  Skills (skipped via --skip-skill)"
+    echo "9/9  Skills (skipped via --skip-skill)"
 else
-    echo "10/10  Skills (user-scoped)"
+    echo "9/9  Skills (user-scoped)"
 
     # claude-md-architect
     SKILL_DEST="$HOME/.claude/skills/claude-md-architect"

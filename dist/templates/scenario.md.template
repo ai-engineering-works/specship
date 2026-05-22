@@ -131,8 +131,8 @@ new error case enumerated). They are NOT mutable to paper over a failing test
 intentionally changed, sync this scenario to the new spec and bump
 `last_synced_to_spec_at`.
 
-If the source spec is substantially revised, the dashboard will surface
-this scenario as "needs refresh" until `last_synced_to_spec_at` is updated.
+If the source spec is substantially revised, this scenario is "needs refresh"
+until `last_synced_to_spec_at` is updated.
 
 To retire a scenario (only when the path it tests is genuinely no longer
 relevant):

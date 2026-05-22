@@ -43,7 +43,7 @@ def db(target: str) -> sqlite3.Connection:
 
 
 def do_value(target: str, table: str, where: str) -> int:
-    """Print COUNT(*) for a table to stdout (for DB-vs-dashboard cross-checks)."""
+    """Print COUNT(*) for a table to stdout (for DB cross-checks)."""
     rebuild(target)
     sql = f"SELECT COUNT(*) FROM {table}"  # trusted, harness-controlled inputs only
     if where:
