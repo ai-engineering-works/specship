@@ -4,6 +4,10 @@
 This is the constitution for the specship repo itself.
 It uses the specship CLAUDE.md template because this repo eats its own dog food.
 
+Inherits cross-cutting rules and shared glossary from ../CLAUDE.md (workspace
+root). Sections below add specship-specific content on top; they do not
+duplicate root.
+
 For architectural context (why specship is the way it is, what was rejected,
 what's been closed/open across versions, known traps), see SPECSHIP-DESIGN.md
 in the repo root. Future Claude sessions making structural changes should
@@ -31,14 +35,11 @@ The specship workflow distribution repo. Holds the canonical source of the slash
 - `dist/commands/contract_hash.py` is reference documentation only. The hash algorithm is re-implemented inline in `dist/commands/contract.md`. If the algorithm changes, BOTH files must be updated together — drift between them is a correctness bug.
 - The pre-commit hook in `dist/hooks/pre-commit` is portable bash 4+ with no GNU-specific flags. Its **blocking** path (the Wall) depends only on `git`, `grep`, `find`, `cmp`. **Soft, advisory** layers (the coverage gate, and the QA checks in `dist/hooks/qa-check.py`) may shell out to `python3` but MUST degrade silently to a no-op when it is absent — they never block a commit. Verified against the 5 test scenarios.
 - The skill body (`dist/skill/claude-md-architect/SKILL.md`) is ≤500 lines. Detail goes into `references/` files which load on demand.
-- No file under `dist/` exceeds 500 lines without a documented reason. Long files indicate something belongs in a reference.
 
 ## Conventions worth following
 
 - Commit messages reference a spec or fix when changes touch `dist/` (the pre-commit hook will block otherwise).
 - One concern per file. The `/spec` command does spec drafting; it does not also do compilation. Resist the urge to merge.
-- Markdown formatting: keep lines under ~100 chars where natural; don't reformat existing content just to "neaten" it.
-- Shell scripts use `set -euo pipefail` and are tested before commit.
 
 ## Recommended model per command
 
@@ -94,10 +95,11 @@ Advisory, not enforced. Claude Code uses whatever model the user has selected. T
 
 ## Domain glossary
 
+<!-- Cross-cutting terms (§ref, ledger, drift, artifact, gate, lesson) live in
+     ../CLAUDE.md. Only specship-specific terms below. -->
+
 - **dist/** — distribution directory; canonical source of files that get installed into other repos
 - **The Wall** — the pre-commit hook that enforces spec/fix linkage on commits touching production code
-- **Drift** — a state where spec, contract artifacts, and code disagree with each other
 - **Hash-locked contract** — generated artifacts carry the SHA-256 hash of the spec's Contract surface section; `/work` refuses to proceed on mismatch
-- **§ref** — traceability comment linking code to a spec or fix (e.g. `§ref:specs/2026-05-12-foo.md`)
 - **Case 1/2/3/4** — the four-case classification for bug fixes, used by `/fix`
 - **Plan-only / from-plan** — `/work --plan-only` drafts a plan and exits; `/work --from-plan` executes a previously-approved plan. Used by `/ship` to split orchestration into a planning sub-phase and an execution sub-phase, with one human approval gate between them. The `--from-plan` mode REFUSES to execute plans without a corresponding `plan_approved` event in the ledger.

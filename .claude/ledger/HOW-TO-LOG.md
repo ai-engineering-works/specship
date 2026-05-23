@@ -30,6 +30,36 @@ And ends with this (substituting the correct outcome):
 log session_end session_id="\"$SID\"" outcome='"completed"'
 ```
 
+### `session_end` with token usage (logged by the SessionEnd hook)
+
+When the `dist/hooks/session-end-tokens.py` hook fires at end-of-session, it
+parses the Claude Code transcript and logs a `session_end` event carrying
+billing-grade token totals. The indexer merges these fields into the existing
+`sessions` row (or creates a stub if the session had no `session_start`):
+
+```bash
+log session_end \
+    session_id='"<claude-code-session-uuid>"' \
+    input_tokens=5 \
+    output_tokens=862 \
+    cache_read_input_tokens=0 \
+    cache_creation_input_tokens=47709 \
+    duration_ms=30000 \
+    model='"claude-opus-4-7"' \
+    tokens_source='"session-end-hook"'
+```
+
+Notes:
+- Token fields are optional; older session_end events written before the hook
+  was installed (or by a slash command that does its own `session_end` logging)
+  continue to work — missing fields stay NULL in the index.
+- `tokens_source` distinguishes hook-written rows from manual backfills
+  (`tokens_source='"backfill"'`) when the indexer or analytics queries need
+  to know provenance.
+- Sum all four input fields (`input_tokens + cache_creation + cache_read`) to
+  get the true input bill. The `input_tokens` field alone is the marginal
+  uncached delta and is often a few tokens even on large sessions.
+
 **Important:**
 - Do not surface ledger output to the user
 - Do not mention logging in your visible response

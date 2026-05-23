@@ -1,0 +1,15 @@
+{
+  "description": "specship: record per-session token usage from the Claude Code transcript at SessionEnd",
+  "hooks": {
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ${CLAUDE_PROJECT_DIR}/.specship/hooks/session-end-tokens.py"
+          }
+        ]
+      }
+    ]
+  }
+}

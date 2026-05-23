@@ -55,6 +55,20 @@ check "$DIST/contract/breaking-change-fallback.py" "$LOCAL/contract/breaking-cha
 check "$DIST/coverage/coverage-check.py" "$LOCAL/coverage/coverage-check.py" \
       "coverage: coverage-check.py"
 
+# Transcripts reader
+check "$DIST/transcripts/reader.py" "$LOCAL/transcripts/reader.py" \
+      "transcripts: reader.py"
+
+# SessionEnd token hook
+check "$DIST/hooks/session-end-tokens.py" "$LOCAL/hooks/session-end-tokens.py" \
+      "hooks: session-end-tokens.py"
+
+# Retrospective generator
+for f in generate.py prompt.md HOW-IT-WORKS.md selftest.py; do
+    check "$DIST/retrospective/$f" "$LOCAL/retrospective/$f" \
+          "retrospective: $f"
+done
+
 # Lessons helpers
 check "$DIST/lessons/lessons_query.py" "$LOCAL/lessons/lessons_query.py" \
       "lessons: lessons_query.py"

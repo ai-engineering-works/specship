@@ -112,6 +112,7 @@ KNOWN_EVENT_TYPES = {
     "lesson_promoted",          # a candidate was promoted via /encode-lesson --from-candidate
     "lesson_decayed",           # curate.py expired an un-actioned candidate
     "lessons_curated",          # curate.py completed a curator run
+    "retrospective_generated",  # dist/retrospective/generate.py emitted a meta-retrospective
 }
 
 
@@ -181,7 +182,14 @@ CREATE TABLE IF NOT EXISTS sessions (
     artifact_path     TEXT,
     scope             TEXT,
     parent_session_id TEXT,
-    raw_args          TEXT
+    raw_args          TEXT,
+    input_tokens                 INTEGER,
+    output_tokens                INTEGER,
+    cache_read_input_tokens      INTEGER,
+    cache_creation_input_tokens  INTEGER,
+    duration_ms                  INTEGER,
+    model                        TEXT,
+    tokens_source                TEXT
 );
 
 CREATE INDEX IF NOT EXISTS ix_sessions_command   ON sessions(command);
@@ -325,6 +333,20 @@ CREATE TABLE IF NOT EXISTS qa_waivers (
 );
 CREATE INDEX IF NOT EXISTS ix_waivers_target ON qa_waivers(target_intent);
 
+CREATE TABLE IF NOT EXISTS retrospectives (
+    retrospective_id  TEXT PRIMARY KEY,
+    ts                TEXT NOT NULL,
+    scope             TEXT,
+    days_covered      INTEGER,
+    model             TEXT,
+    summary_text      TEXT,
+    suggestions_json  TEXT,
+    tokens_used       INTEGER,
+    session_count     INTEGER
+);
+CREATE INDEX IF NOT EXISTS ix_retro_ts    ON retrospectives(ts);
+CREATE INDEX IF NOT EXISTS ix_retro_scope ON retrospectives(scope);
+
 CREATE TABLE IF NOT EXISTS schema_meta (
     key   TEXT PRIMARY KEY,
     value TEXT NOT NULL
@@ -332,10 +354,29 @@ CREATE TABLE IF NOT EXISTS schema_meta (
 """
 
 
+SESSION_TOKEN_COLUMNS = (
+    ("input_tokens", "INTEGER"),
+    ("output_tokens", "INTEGER"),
+    ("cache_read_input_tokens", "INTEGER"),
+    ("cache_creation_input_tokens", "INTEGER"),
+    ("duration_ms", "INTEGER"),
+    ("model", "TEXT"),
+    ("tokens_source", "TEXT"),
+)
+
+
 def open_db() -> sqlite3.Connection:
     conn = sqlite3.connect(db_path())
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA_SQL)
+    # In-place migration: ALTER TABLE adds the column if a pre-token-era DB
+    # still exists. sqlite3.OperationalError fires for "duplicate column",
+    # which we swallow — the column is already there.
+    for name, sqltype in SESSION_TOKEN_COLUMNS:
+        try:
+            conn.execute(f"ALTER TABLE sessions ADD COLUMN {name} {sqltype}")
+        except sqlite3.OperationalError:
+            pass
     return conn
 
 
@@ -371,11 +412,60 @@ def index_event(conn: sqlite3.Connection, event: dict[str, Any]) -> None:
             ),
         )
     elif et == "session_end":
-        conn.execute(
-            "UPDATE sessions SET ended_at = ?, outcome = ? "
+        # Token usage fields are optional — older session_end events (logged
+        # before the SessionEnd hook was installed) won't carry them, and we
+        # don't want a hook failure to break the indexer either.
+        cur = conn.execute(
+            "UPDATE sessions SET "
+            "  ended_at = ?, "
+            "  outcome  = COALESCE(?, outcome), "
+            "  input_tokens                = COALESCE(?, input_tokens), "
+            "  output_tokens               = COALESCE(?, output_tokens), "
+            "  cache_read_input_tokens     = COALESCE(?, cache_read_input_tokens), "
+            "  cache_creation_input_tokens = COALESCE(?, cache_creation_input_tokens), "
+            "  duration_ms                 = COALESCE(?, duration_ms), "
+            "  model                       = COALESCE(?, model), "
+            "  tokens_source               = COALESCE(?, tokens_source) "
             "WHERE session_id = ?",
-            (ts, event.get("outcome"), session_id),
+            (
+                ts,
+                event.get("outcome"),
+                event.get("input_tokens"),
+                event.get("output_tokens"),
+                event.get("cache_read_input_tokens"),
+                event.get("cache_creation_input_tokens"),
+                event.get("duration_ms"),
+                event.get("model"),
+                event.get("tokens_source"),
+                session_id,
+            ),
         )
+        # Backfill path: if no session_start was ever logged for this id
+        # (Claude Code sessions that didn't run a specship slash command still
+        # produce transcripts we record), insert a stub row.
+        if cur.rowcount == 0 and session_id:
+            conn.execute(
+                "INSERT OR IGNORE INTO sessions "
+                "(session_id, command, started_at, ended_at, outcome, "
+                " input_tokens, output_tokens, "
+                " cache_read_input_tokens, cache_creation_input_tokens, "
+                " duration_ms, model, tokens_source) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    session_id,
+                    command or event.get("command") or "<unknown>",
+                    event.get("started_at") or ts,
+                    ts,
+                    event.get("outcome"),
+                    event.get("input_tokens"),
+                    event.get("output_tokens"),
+                    event.get("cache_read_input_tokens"),
+                    event.get("cache_creation_input_tokens"),
+                    event.get("duration_ms"),
+                    event.get("model"),
+                    event.get("tokens_source"),
+                ),
+            )
     elif et in ("artifact_created", "artifact_updated"):
         path = event.get("path") or artifact
         if path:
@@ -633,6 +723,29 @@ def index_event(conn: sqlite3.Connection, event: dict[str, Any]) -> None:
                 event.get("reason"),
                 event.get("target_resolution_date"),
                 ts,
+            ),
+        )
+
+    elif et == "retrospective_generated":
+        rid = event.get("retrospective_id") or eid
+        suggestions = event.get("suggestions")
+        if not isinstance(suggestions, str):
+            suggestions = json.dumps(suggestions or [])
+        conn.execute(
+            "INSERT OR REPLACE INTO retrospectives "
+            "(retrospective_id, ts, scope, days_covered, model, summary_text, "
+            " suggestions_json, tokens_used, session_count) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                rid,
+                ts,
+                event.get("scope"),
+                event.get("days_covered"),
+                event.get("model"),
+                event.get("summary_text"),
+                suggestions,
+                event.get("tokens_used"),
+                event.get("session_count"),
             ),
         )
 

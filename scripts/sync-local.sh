@@ -28,7 +28,8 @@ fi
 echo "Syncing $DIST → $LOCAL"
 
 # Wipe and regenerate .claude/commands and .claude/skills
-rm -rf "$LOCAL/commands" "$LOCAL/skills" "$LOCAL/ledger" "$LOCAL/contract" "$LOCAL/coverage"
+rm -rf "$LOCAL/commands" "$LOCAL/skills" "$LOCAL/ledger" "$LOCAL/contract" \
+       "$LOCAL/coverage" "$LOCAL/transcripts" "$LOCAL/hooks" "$LOCAL/retrospective"
 mkdir -p "$LOCAL/commands"
 mkdir -p "$LOCAL/skills/claude-md-architect/references"
 mkdir -p "$LOCAL/skills/spec-reverse-engineer/references"
@@ -57,6 +58,22 @@ chmod +x "$LOCAL/contract/breaking-change-check.sh" "$LOCAL/contract/breaking-ch
 mkdir -p "$LOCAL/coverage"
 cp "$DIST/coverage/coverage-check.py" "$LOCAL/coverage/coverage-check.py"
 chmod +x "$LOCAL/coverage/coverage-check.py"
+
+# Transcripts reader (shared by SessionEnd token hook + future retrospective)
+mkdir -p "$LOCAL/transcripts"
+cp "$DIST/transcripts/reader.py" "$LOCAL/transcripts/reader.py"
+
+# SessionEnd token hook script
+mkdir -p "$LOCAL/hooks"
+cp "$DIST/hooks/session-end-tokens.py" "$LOCAL/hooks/session-end-tokens.py"
+chmod +x "$LOCAL/hooks/session-end-tokens.py"
+
+# Retrospective generator (CLI + prompt + selftest + docs)
+mkdir -p "$LOCAL/retrospective"
+for f in generate.py prompt.md HOW-IT-WORKS.md selftest.py; do
+    cp "$DIST/retrospective/$f" "$LOCAL/retrospective/$f"
+done
+chmod +x "$LOCAL/retrospective/generate.py"
 
 # Lessons helpers — curate pipeline and query library
 mkdir -p "$LOCAL/lessons"

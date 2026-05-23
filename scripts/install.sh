@@ -193,6 +193,15 @@ safe_copy "$DIST/ledger/specship_ledger.py" "$LEDGER_DEST/specship_ledger.py"
 safe_copy "$DIST/ledger/ledger.sh" "$LEDGER_DEST/ledger.sh"
 safe_copy "$DIST/ledger/HOW-TO-LOG.md" "$LEDGER_DEST/HOW-TO-LOG.md"
 run "chmod +x '$LEDGER_DEST/specship_ledger.py' '$LEDGER_DEST/ledger.sh'"
+
+# Transcript reader + SessionEnd token hook. Reads Claude Code transcripts at
+# SessionEnd and writes token totals into the ledger (session_end event).
+TRANSCRIPTS_DEST="$TARGET/.specship/transcripts"
+HOOKS_DEST="$TARGET/.specship/hooks"
+run "mkdir -p '$TRANSCRIPTS_DEST' '$HOOKS_DEST'"
+safe_copy "$DIST/transcripts/reader.py" "$TRANSCRIPTS_DEST/reader.py"
+safe_copy "$DIST/hooks/session-end-tokens.py" "$HOOKS_DEST/session-end-tokens.py"
+run "chmod +x '$HOOKS_DEST/session-end-tokens.py'"
 # Stamp the installed specship version (read by specship-dashboard and by the
 # ledger to tag session_start events).
 if [[ -f "$REPO_ROOT/VERSION" ]]; then
@@ -222,11 +231,35 @@ run "chmod +x '$LESSONS_DEST/curate.sh'"
 
 # Auto-lessons: SessionEnd capture hook + optional hourly curator cron.
 HOOK_SNIPPET="$DIST/hooks/session-end-capture.json"
+TOKENS_HOOK_SNIPPET="$DIST/hooks/session-end-tokens.json"
 SETTINGS_FILE="$TARGET/.claude/settings.json"
 echo ""
 echo "Auto-lessons setup:"
 echo "  To capture lessons automatically at session end, merge this into $SETTINGS_FILE:"
 echo "    $(cat "$HOOK_SNIPPET")"
+echo ""
+echo "Token instrumentation setup:"
+echo "  To record per-session token usage at SessionEnd, merge this into $SETTINGS_FILE:"
+echo "    $(cat "$TOKENS_HOOK_SNIPPET")"
+echo "  Both SessionEnd hooks coexist — Claude Code runs them both. If you already"
+echo "  have a SessionEnd array, append this entry to it rather than overwriting."
+
+# Workflow retrospective — CLI tool (not a hook). Reads transcripts + ledger,
+# calls the Anthropic API, writes a retrospective_generated event.
+RETRO_DEST="$TARGET/.specship/retrospective"
+echo ""
+echo "Retrospective generator:"
+run "mkdir -p '$RETRO_DEST'"
+for f in generate.py prompt.md HOW-IT-WORKS.md selftest.py; do
+    safe_copy "$DIST/retrospective/$f" "$RETRO_DEST/$f"
+done
+run "chmod +x '$RETRO_DEST/generate.py'"
+# Ensure the workspace-wide ledger directory exists so --repo all has a target.
+run "mkdir -p '$HOME/.specship/global/ledger'"
+echo "  Run a retrospective with:"
+echo "    python3 $RETRO_DEST/generate.py --days 7 --repo all"
+echo "  Requires the anthropic Python SDK (pip install --user anthropic) and"
+echo "  ANTHROPIC_API_KEY. See $RETRO_DEST/HOW-IT-WORKS.md for the privacy posture."
 CRON_LINE="0 * * * * cd '$TARGET' && .specship/lessons/curate.sh >> .specship/lessons/curate.log 2>&1"
 if [[ "${WITH_CRON:-0}" == "1" ]]; then
     if crontab -l 2>/dev/null | grep -qF ".specship/lessons/curate.sh"; then
